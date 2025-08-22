@@ -1,0 +1,8 @@
+C:\Think Tank\Src\SBOAddonCoreTax\SBOAddonCoreTax\bin\Debug\SBOAddonCoreTax.exe
+C:\Think Tank\Src\SBOAddonCoreTax\SBOAddonCoreTax\bin\Debug\SBOAddonCoreTax.pdb
+C:\Think Tank\Src\SBOAddonCoreTax\SBOAddonCoreTax\bin\Debug\SAPBusinessOneSDK.dll
+C:\Think Tank\Src\SBOAddonCoreTax\SBOAddonCoreTax\obj\Debug\SBOAddonCoreTax.csproj.CoreCompileInputs.cache
+C:\Think Tank\Src\SBOAddonCoreTax\SBOAddonCoreTax\obj\Debug\SBOAddonCoreTax.csproj.CopyComplete
+C:\Think Tank\Src\SBOAddonCoreTax\SBOAddonCoreTax\obj\Debug\SBOAddonCoreTax.exe
+C:\Think Tank\Src\SBOAddonCoreTax\SBOAddonCoreTax\obj\Debug\SBOAddonCoreTax.pdb
+C:\Think Tank\Src\SBOAddonCoreTax\SBOAddonCoreTax\obj\Debug\SBOAddonCoreTax.csprojAssemblyReference.cache
