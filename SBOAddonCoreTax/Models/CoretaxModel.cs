@@ -86,9 +86,12 @@ namespace SBOAddonCoreTax.Models
         public string Referensi { get; set; }
         public string Status { get; set; }
         public string KodeDokumenPendukung { get; set; }
-        public string Branch { get; set; }
+        public string BranchCode { get; set; }
+        public string BranchName { get; set; }
         public string AddInfo { get; set; }
         public string BuyerCountry { get; set; }
         public string BuyerEmail { get; set; }
+        public string OutletCode { get; set; }
+        public string OutletName { get; set; }
     }
 }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SBOAddonCoreTax.Models
 {
-    class FilterDataModel
+    public class FilterDataModel
     {
         public string DocEntry { get; set; }
         public string DocNo { get; set; }
@@ -15,8 +15,10 @@ namespace SBOAddonCoreTax.Models
         public string ObjType { get; set; }
         public string ObjName { get; set; }
         public string PostDate { get; set; }
-        public string Branch { get; set; }
-        public string Outlet { get; set; }
+        public string BranchCode { get; set; }
+        public string BranchName { get; set; }
+        public string OutletCode { get; set; }
+        public string OutletName { get; set; }
         public bool Selected { get; set; } = true;
     }
 }

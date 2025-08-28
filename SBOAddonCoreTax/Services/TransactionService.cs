@@ -11,203 +11,344 @@ namespace SBOAddonCoreTax.Services
 {
     public static class TransactionService
     {
-        public static bool AddDataCoretax(CoretaxModel model)
+        public static Task<int> AddDataCoretax(CoretaxModel model)
         {
-            try
-            {
-                Company oCompany = CompanyService.GetCompany();
-                SAPbobsCOM.CompanyService oCompanyService = oCompany.GetCompanyService();
-                int seriesId = GetSeriesIdCoretax(oCompany);
-                // 1. Get GeneralService for UDO
-                GeneralService oGeneralService = oCompanyService.GetGeneralService("T2_CORETAX");
-
-                // 2. Create header
-                GeneralData oGeneralData = (GeneralData)oGeneralService.GetDataInterface(GeneralServiceDataInterfaces.gsGeneralData);
-                
-                // --- Header fields ---
-                oGeneralData.SetProperty("Series", seriesId);
-                oGeneralData.SetProperty("U_T2_Doc_Date", DateTime.Now);
-                oGeneralData.SetProperty("U_T2_AR_INV", model.IsARInvoice ? "Y" : "N");
-                oGeneralData.SetProperty("U_T2_AR_DP", model.IsARDownPayment ? "Y" : "N");
-                oGeneralData.SetProperty("U_T2_AR_CM", model.IsARCreditMemo ? "Y" : "N");
-
-                if (model.FromDate != null) oGeneralData.SetProperty("U_T2_From_Date", model.FromDate);
-                if (model.ToDate != null) oGeneralData.SetProperty("U_T2_To_Date", model.ToDate);
-                if (model.FromDocNum > 0) oGeneralData.SetProperty("U_T2_From_Doc", model.FromDocNum);
-                if (model.ToDocNum > 0) oGeneralData.SetProperty("U_T2_To_Doc", model.ToDocNum);
-                if (model.FromDocEntry > 0) oGeneralData.SetProperty("U_T2_From_Doc_Entry", model.FromDocEntry);
-                if (model.ToDocEntry > 0) oGeneralData.SetProperty("U_T2_To_Doc_Entry", model.ToDocEntry);
-
-                if (!string.IsNullOrEmpty(model.FromCust)) oGeneralData.SetProperty("U_T2_From_Cust", model.FromCust);
-                if (!string.IsNullOrEmpty(model.ToCust)) oGeneralData.SetProperty("U_T2_To_Cust", model.ToCust);
-                if (!string.IsNullOrEmpty(model.FromBranch)) oGeneralData.SetProperty("U_T2_From_Branch", model.FromBranch);
-                if (!string.IsNullOrEmpty(model.ToBranch)) oGeneralData.SetProperty("U_T2_To_Branch", model.ToBranch);
-                if (!string.IsNullOrEmpty(model.FromOutlet)) oGeneralData.SetProperty("U_T2_From_Outlet", model.FromOutlet);
-                if (!string.IsNullOrEmpty(model.ToOutlet)) oGeneralData.SetProperty("U_T2_To_Outlet", model.ToOutlet);
-
-                // 3. Add detail lines
-                GeneralDataCollection oChildren = oGeneralData.Child("T2_CORETAX_DT");
-                foreach (var line in model.Detail)
+            return Task.Run(() => {
+                try
                 {
-                    GeneralData oChild = oChildren.Add();
 
-                    if (!string.IsNullOrEmpty(line.TIN)) oChild.SetProperty("U_T2_TIN", line.TIN);
-                    if (!string.IsNullOrEmpty(line.DocEntry)) oChild.SetProperty("U_T2_DocEntry", line.DocEntry);
-                    if (!string.IsNullOrEmpty(line.LineNum)) oChild.SetProperty("U_T2_LineNum", line.LineNum);
-                    if (!string.IsNullOrEmpty(line.InvDate)) oChild.SetProperty("U_T2_Inv_Date", line.InvDate);
-                    if (!string.IsNullOrEmpty(line.NoDocument)) oChild.SetProperty("U_T2_No_Doc", line.NoDocument);
-                    if (!string.IsNullOrEmpty(line.ObjectType)) oChild.SetProperty("U_T2_Object_Type", line.ObjectType);
-                    if (!string.IsNullOrEmpty(line.ObjectName)) oChild.SetProperty("U_T2_Object_Name", line.ObjectName);
-                    if (!string.IsNullOrEmpty(line.BPCode)) oChild.SetProperty("U_T2_BP_Code", line.BPCode);
-                    if (!string.IsNullOrEmpty(line.BPName)) oChild.SetProperty("U_T2_BP_Name", line.BPName);
-                    if (!string.IsNullOrEmpty(line.SellerIDTKU)) oChild.SetProperty("U_T2_Seller_IDTKU", line.SellerIDTKU);
-                    if (!string.IsNullOrEmpty(line.BuyerDocument)) oChild.SetProperty("U_T2_Buyer_Doc", line.BuyerDocument);
-                    if (!string.IsNullOrEmpty(line.NomorNPWP)) oChild.SetProperty("U_T2_Nomor_NPWP", line.NomorNPWP);
-                    if (!string.IsNullOrEmpty(line.NPWPName)) oChild.SetProperty("U_T2_NPWP_Name", line.NPWPName);
-                    if (!string.IsNullOrEmpty(line.NPWPAddress)) oChild.SetProperty("U_T2_NPWP_Address", line.NPWPAddress);
-                    if (!string.IsNullOrEmpty(line.BuyerIDTKU)) oChild.SetProperty("U_T2_Buyer_IDTKU", line.BuyerIDTKU);
-                    if (!string.IsNullOrEmpty(line.ItemCode)) oChild.SetProperty("U_T2_Item_Code", line.ItemCode);
-                    if (!string.IsNullOrEmpty(line.ItemName)) oChild.SetProperty("U_T2_Item_Name", line.ItemName);
-                    if (!string.IsNullOrEmpty(line.ItemUnit)) oChild.SetProperty("U_T2_Item_Unit", line.ItemUnit);
+                    Company oCompany = CompanyService.GetCompany();
+                    SAPbobsCOM.CompanyService oCompanyService = oCompany.GetCompanyService();
+                    int seriesId = 0;
+                    seriesId = GetSeriesIdCoretax();
+                    // 1. Get GeneralService for UDO
+                    GeneralService oGeneralService = oCompanyService.GetGeneralService("T2_CORETAX");
 
-                    // --- numeric fields (pastikan UDF tipe number/price/rate) ---
-                    if (line.ItemPrice > 0) oChild.SetProperty("U_T2_Item_Price", line.ItemPrice);
-                    if (line.Qty > 0) oChild.SetProperty("U_T2_Qty", line.Qty);
-                    if (line.TotalDisc > 0) oChild.SetProperty("U_T2_Total_Disc", line.TotalDisc);
-                    if (line.TaxBase > 0) oChild.SetProperty("U_T2_Tax_Base", line.TaxBase);
-                    if (line.OtherTaxBase > 0) oChild.SetProperty("U_T2_Other_Tax_Base", line.OtherTaxBase);
-                    if (line.VATRate > 0) oChild.SetProperty("U_T2_VAT_Rate", line.VATRate);
-                    if (line.AmountVAT > 0) oChild.SetProperty("U_T2_Amount_VAT", line.AmountVAT);
-                    if (line.STLGRate > 0) oChild.SetProperty("U_T2_STLG_Rate", line.STLGRate);
-                    if (line.STLG > 0) oChild.SetProperty("U_T2_STLG", line.STLG);
+                    // 2. Create header
+                    GeneralData oGeneralData = (GeneralData)oGeneralService.GetDataInterface(GeneralServiceDataInterfaces.gsGeneralData);
 
-                    // --- string fields ---
-                    if (!string.IsNullOrEmpty(line.JenisPajak)) oChild.SetProperty("U_T2_Jenis_Pajak", line.JenisPajak);
-                    if (!string.IsNullOrEmpty(line.KetTambahan)) oChild.SetProperty("U_T2_Ket_Tambahan", line.KetTambahan);
-                    if (!string.IsNullOrEmpty(line.PajakPengganti)) oChild.SetProperty("U_T2_Pajak_Pengganti", line.PajakPengganti);
-                    if (!string.IsNullOrEmpty(line.Referensi)) oChild.SetProperty("U_T2_Referensi", line.Referensi);
-                    if (!string.IsNullOrEmpty(line.Status)) oChild.SetProperty("U_T2_Status", line.Status);
-                    if (!string.IsNullOrEmpty(line.KodeDokumenPendukung)) oChild.SetProperty("U_T2_Kode_Dok_Pendukung", line.KodeDokumenPendukung);
-                    if (!string.IsNullOrEmpty(line.Branch)) oChild.SetProperty("U_T2_Branch", line.Branch);
-                    if (!string.IsNullOrEmpty(line.AddInfo)) oChild.SetProperty("U_T2_Add_Info", line.AddInfo);
-                    if (!string.IsNullOrEmpty(line.BuyerCountry)) oChild.SetProperty("U_T2_Buyer_Country", line.BuyerCountry);
-                    if (!string.IsNullOrEmpty(line.BuyerEmail)) oChild.SetProperty("U_T2_Buyer_Email", line.BuyerEmail);
+                    // --- Header fields ---
+                    oGeneralData.SetProperty("Series", seriesId);
+                    oGeneralData.SetProperty("U_T2_Doc_Date", DateTime.Now);
+                    oGeneralData.SetProperty("U_T2_AR_INV", model.IsARInvoice ? "Y" : "N");
+                    oGeneralData.SetProperty("U_T2_AR_DP", model.IsARDownPayment ? "Y" : "N");
+                    oGeneralData.SetProperty("U_T2_AR_CM", model.IsARCreditMemo ? "Y" : "N");
+
+                    if (model.FromDate != null) oGeneralData.SetProperty("U_T2_From_Date", model.FromDate);
+                    if (model.ToDate != null) oGeneralData.SetProperty("U_T2_To_Date", model.ToDate);
+                    if (model.FromDocNum > 0) oGeneralData.SetProperty("U_T2_From_Doc", model.FromDocNum);
+                    if (model.ToDocNum > 0) oGeneralData.SetProperty("U_T2_To_Doc", model.ToDocNum);
+                    if (model.FromDocEntry > 0) oGeneralData.SetProperty("U_T2_From_Doc_Entry", model.FromDocEntry);
+                    if (model.ToDocEntry > 0) oGeneralData.SetProperty("U_T2_To_Doc_Entry", model.ToDocEntry);
+
+                    if (!string.IsNullOrEmpty(model.FromCust)) oGeneralData.SetProperty("U_T2_From_Cust", model.FromCust);
+                    if (!string.IsNullOrEmpty(model.ToCust)) oGeneralData.SetProperty("U_T2_To_Cust", model.ToCust);
+                    if (!string.IsNullOrEmpty(model.FromBranch)) oGeneralData.SetProperty("U_T2_From_Branch", model.FromBranch);
+                    if (!string.IsNullOrEmpty(model.ToBranch)) oGeneralData.SetProperty("U_T2_To_Branch", model.ToBranch);
+                    if (!string.IsNullOrEmpty(model.FromOutlet)) oGeneralData.SetProperty("U_T2_From_Outlet", model.FromOutlet);
+                    if (!string.IsNullOrEmpty(model.ToOutlet)) oGeneralData.SetProperty("U_T2_To_Outlet", model.ToOutlet);
+
+                    // 3. Add detail lines
+                    GeneralDataCollection oChildren = oGeneralData.Child("T2_CORETAX_DT");
+                    foreach (var line in model.Detail)
+                    {
+                        GeneralData oChild = oChildren.Add();
+
+                        if (!string.IsNullOrEmpty(line.TIN)) oChild.SetProperty("U_T2_TIN", line.TIN);
+                        if (!string.IsNullOrEmpty(line.DocEntry)) oChild.SetProperty("U_T2_DocEntry", line.DocEntry);
+                        if (!string.IsNullOrEmpty(line.LineNum)) oChild.SetProperty("U_T2_LineNum", line.LineNum);
+                        if (!string.IsNullOrEmpty(line.InvDate)) oChild.SetProperty("U_T2_Inv_Date", line.InvDate);
+                        if (!string.IsNullOrEmpty(line.NoDocument)) oChild.SetProperty("U_T2_No_Doc", line.NoDocument);
+                        if (!string.IsNullOrEmpty(line.ObjectType)) oChild.SetProperty("U_T2_Object_Type", line.ObjectType);
+                        if (!string.IsNullOrEmpty(line.ObjectName)) oChild.SetProperty("U_T2_Object_Name", line.ObjectName);
+                        if (!string.IsNullOrEmpty(line.BPCode)) oChild.SetProperty("U_T2_BP_Code", line.BPCode);
+                        if (!string.IsNullOrEmpty(line.BPName)) oChild.SetProperty("U_T2_BP_Name", line.BPName);
+                        if (!string.IsNullOrEmpty(line.SellerIDTKU)) oChild.SetProperty("U_T2_Seller_IDTKU", line.SellerIDTKU);
+                        if (!string.IsNullOrEmpty(line.BuyerDocument)) oChild.SetProperty("U_T2_Buyer_Doc", line.BuyerDocument);
+                        if (!string.IsNullOrEmpty(line.NomorNPWP)) oChild.SetProperty("U_T2_Nomor_NPWP", line.NomorNPWP);
+                        if (!string.IsNullOrEmpty(line.NPWPName)) oChild.SetProperty("U_T2_NPWP_Name", line.NPWPName);
+                        if (!string.IsNullOrEmpty(line.NPWPAddress)) oChild.SetProperty("U_T2_NPWP_Address", line.NPWPAddress);
+                        if (!string.IsNullOrEmpty(line.BuyerIDTKU)) oChild.SetProperty("U_T2_Buyer_IDTKU", line.BuyerIDTKU);
+                        if (!string.IsNullOrEmpty(line.ItemCode)) oChild.SetProperty("U_T2_Item_Code", line.ItemCode);
+                        if (!string.IsNullOrEmpty(line.ItemName)) oChild.SetProperty("U_T2_Item_Name", line.ItemName);
+                        if (!string.IsNullOrEmpty(line.ItemUnit)) oChild.SetProperty("U_T2_Item_Unit", line.ItemUnit);
+
+                        // --- numeric fields (pastikan UDF tipe number/price/rate) ---
+                        if (line.ItemPrice > 0) oChild.SetProperty("U_T2_Item_Price", line.ItemPrice);
+                        if (line.Qty > 0) oChild.SetProperty("U_T2_Qty", line.Qty);
+                        if (line.TotalDisc > 0) oChild.SetProperty("U_T2_Total_Disc", line.TotalDisc);
+                        if (line.TaxBase > 0) oChild.SetProperty("U_T2_Tax_Base", line.TaxBase);
+                        if (line.OtherTaxBase > 0) oChild.SetProperty("U_T2_Other_Tax_Base", line.OtherTaxBase);
+                        if (line.VATRate > 0) oChild.SetProperty("U_T2_VAT_Rate", line.VATRate);
+                        if (line.AmountVAT > 0) oChild.SetProperty("U_T2_Amount_VAT", line.AmountVAT);
+                        if (line.STLGRate > 0) oChild.SetProperty("U_T2_STLG_Rate", line.STLGRate);
+                        if (line.STLG > 0) oChild.SetProperty("U_T2_STLG", line.STLG);
+
+                        // --- string fields ---
+                        if (!string.IsNullOrEmpty(line.JenisPajak)) oChild.SetProperty("U_T2_Jenis_Pajak", line.JenisPajak);
+                        if (!string.IsNullOrEmpty(line.KetTambahan)) oChild.SetProperty("U_T2_Ket_Tambahan", line.KetTambahan);
+                        if (!string.IsNullOrEmpty(line.PajakPengganti)) oChild.SetProperty("U_T2_Pajak_Pengganti", line.PajakPengganti);
+                        if (!string.IsNullOrEmpty(line.Referensi)) oChild.SetProperty("U_T2_Referensi", line.Referensi);
+                        if (!string.IsNullOrEmpty(line.Status)) oChild.SetProperty("U_T2_Status", line.Status);
+                        if (!string.IsNullOrEmpty(line.KodeDokumenPendukung)) oChild.SetProperty("U_T2_Kode_Dok_Pendukung", line.KodeDokumenPendukung);
+                        if (!string.IsNullOrEmpty(line.BranchCode)) oChild.SetProperty("U_T2_Branch_Code", line.BranchCode);
+                        if (!string.IsNullOrEmpty(line.BranchName)) oChild.SetProperty("U_T2_Branch_Name", line.BranchName);
+                        if (!string.IsNullOrEmpty(line.OutletCode)) oChild.SetProperty("U_T2_Outlet_Code", line.OutletCode);
+                        if (!string.IsNullOrEmpty(line.OutletName)) oChild.SetProperty("U_T2_Outlet_Name", line.OutletName);
+                        if (!string.IsNullOrEmpty(line.AddInfo)) oChild.SetProperty("U_T2_Add_Info", line.AddInfo);
+                        if (!string.IsNullOrEmpty(line.BuyerCountry)) oChild.SetProperty("U_T2_Buyer_Country", line.BuyerCountry);
+                        if (!string.IsNullOrEmpty(line.BuyerEmail)) oChild.SetProperty("U_T2_Buyer_Email", line.BuyerEmail);
+                    }
+
+                    // 4. Save data
+                    GeneralDataParams oGeneralParams = oGeneralService.Add(oGeneralData);
+                    int newDocEntry = Convert.ToInt32(oGeneralParams.GetProperty("DocEntry"));
+
+                    return Task.FromResult(newDocEntry);
                 }
-
-                // 4. Save data
-                GeneralDataParams oGeneralParams = oGeneralService.Add(oGeneralData);
-                int newDocEntry = Convert.ToInt32(oGeneralParams.GetProperty("DocEntry"));
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                // kalau mau return false aja biar lebih aman
-                throw new Exception($"Error AddDataCoretax: {ex.Message}", ex);
-            }
+                catch (Exception ex)
+                {
+                    // kalau mau return false aja biar lebih aman
+                    throw new Exception($"Error AddDataCoretax: {ex.Message}", ex);
+                }
+            });
         }
 
-        public static CoretaxModel GetCoretaxByKey(int docEntry)
+        public static Task<int> UpdateDataCoretax(CoretaxModel model)
         {
-            Company oCompany = CompanyService.GetCompany();
-
-            try
-            {
-                SAPbobsCOM.CompanyService oCompanyService = oCompany.GetCompanyService();
-                
-                SAPbobsCOM.GeneralService oGeneralService = oCompanyService.GetGeneralService("T2_CORETAX");
-                
-                SAPbobsCOM.GeneralDataParams oParams = (SAPbobsCOM.GeneralDataParams)oGeneralService.GetDataInterface(
-                    SAPbobsCOM.GeneralServiceDataInterfaces.gsGeneralDataParams);
-                oParams.SetProperty("DocEntry", docEntry);
-                
-                SAPbobsCOM.GeneralData oHeader = oGeneralService.GetByParams(oParams);
-
-                var series = GetSeriesByDocEntry("T2_CORETAX", docEntry);
-
-                var model = new CoretaxModel
+            return Task.Run(() => {
+                try
                 {
-                    DocNum = Convert.ToInt32(oHeader.GetProperty("DocNum")),
-                    DocDate = oHeader.GetProperty("U_T2_Doc_Date") == null ? null : (DateTime?)Convert.ToDateTime(oHeader.GetProperty("U_T2_Doc_Date")),
-                    PostDate = oHeader.GetProperty("U_T2_Posting_Date") == null ? null : (DateTime?)Convert.ToDateTime(oHeader.GetProperty("U_T2_Posting_Date")),
-                    SeriesId = series.SeriesId,
-                    SeriesName = series.SeriesName,
-                    IsARInvoice = (oHeader.GetProperty("U_T2_AR_INV")?.ToString() == "Y"),
-                    IsARDownPayment = (oHeader.GetProperty("U_T2_AR_DP")?.ToString() == "Y"),
-                    IsARCreditMemo = (oHeader.GetProperty("U_T2_AR_CM")?.ToString() == "Y"),
+                    Company oCompany = CompanyService.GetCompany();
+                    SAPbobsCOM.CompanyService oCompanyService = oCompany.GetCompanyService();
 
-                    FromDocNum = oHeader.GetProperty("U_T2_From_Doc") == null ? null : (int?)Convert.ToInt32(oHeader.GetProperty("U_T2_From_Doc")),
-                    ToDocNum = oHeader.GetProperty("U_T2_To_Doc") == null ? null : (int?)Convert.ToInt32(oHeader.GetProperty("U_T2_To_Doc")),
-                    FromDocEntry = oHeader.GetProperty("U_T2_From_Doc_Entry") == null ? null : (int?)Convert.ToInt32(oHeader.GetProperty("U_T2_From_Doc_Entry")),
-                    ToDocEntry = oHeader.GetProperty("U_T2_To_Doc_Entry") == null ? null : (int?)Convert.ToInt32(oHeader.GetProperty("U_T2_To_Doc_Entry")),
+                    // 1. Get GeneralService for UDO
+                    GeneralService oGeneralService = oCompanyService.GetGeneralService("T2_CORETAX");
 
-                    FromDate = oHeader.GetProperty("U_T2_From_Date") == null ? null : (DateTime?)Convert.ToDateTime(oHeader.GetProperty("U_T2_From_Date")),
-                    ToDate = oHeader.GetProperty("U_T2_To_Date") == null ? null : (DateTime?)Convert.ToDateTime(oHeader.GetProperty("U_T2_To_Date")),
+                    // 2. Load existing data by DocEntry
+                    GeneralDataParams oGeneralParams = (GeneralDataParams)oGeneralService.GetDataInterface(GeneralServiceDataInterfaces.gsGeneralDataParams);
+                    oGeneralParams.SetProperty("DocEntry", model.DocEntry);   // pastikan model.DocEntry sudah ada
 
-                    FromCust = oHeader.GetProperty("U_T2_From_Cust")?.ToString(),
-                    ToCust = oHeader.GetProperty("U_T2_To_Cust")?.ToString(),
-                    FromBranch = oHeader.GetProperty("U_T2_From_Branch")?.ToString(),
-                    ToBranch = oHeader.GetProperty("U_T2_To_Branch")?.ToString(),
-                    FromOutlet = oHeader.GetProperty("U_T2_From_Outlet")?.ToString(),
-                    ToOutlet = oHeader.GetProperty("U_T2_To_Outlet")?.ToString(),
+                    GeneralData oGeneralData = oGeneralService.GetByParams(oGeneralParams);
 
-                    Status = oHeader.GetProperty("Status")?.ToString() ?? "O"
-                };
+                    // --- Header fields ---
+                    oGeneralData.SetProperty("U_T2_AR_INV", model.IsARInvoice ? "Y" : "N");
+                    oGeneralData.SetProperty("U_T2_AR_DP", model.IsARDownPayment ? "Y" : "N");
+                    oGeneralData.SetProperty("U_T2_AR_CM", model.IsARCreditMemo ? "Y" : "N");
 
-                // 6. Map child table (detail lines)
-                SAPbobsCOM.GeneralDataCollection children = oHeader.Child("T2_CORETAX1"); // UDO child table name
-                foreach (SAPbobsCOM.GeneralData line in children)
-                {
-                    var detail = new InvoiceDataModel
+                    if (model.FromDate != null) oGeneralData.SetProperty("U_T2_From_Date", model.FromDate);
+                    if (model.ToDate != null) oGeneralData.SetProperty("U_T2_To_Date", model.ToDate);
+                    if (model.FromDocNum > 0) oGeneralData.SetProperty("U_T2_From_Doc", model.FromDocNum);
+                    if (model.ToDocNum > 0) oGeneralData.SetProperty("U_T2_To_Doc", model.ToDocNum);
+                    if (model.FromDocEntry > 0) oGeneralData.SetProperty("U_T2_From_Doc_Entry", model.FromDocEntry);
+                    if (model.ToDocEntry > 0) oGeneralData.SetProperty("U_T2_To_Doc_Entry", model.ToDocEntry);
+
+                    if (!string.IsNullOrEmpty(model.FromCust)) oGeneralData.SetProperty("U_T2_From_Cust", model.FromCust);
+                    if (!string.IsNullOrEmpty(model.ToCust)) oGeneralData.SetProperty("U_T2_To_Cust", model.ToCust);
+                    if (!string.IsNullOrEmpty(model.FromBranch)) oGeneralData.SetProperty("U_T2_From_Branch", model.FromBranch);
+                    if (!string.IsNullOrEmpty(model.ToBranch)) oGeneralData.SetProperty("U_T2_To_Branch", model.ToBranch);
+                    if (!string.IsNullOrEmpty(model.FromOutlet)) oGeneralData.SetProperty("U_T2_From_Outlet", model.FromOutlet);
+                    if (!string.IsNullOrEmpty(model.ToOutlet)) oGeneralData.SetProperty("U_T2_To_Outlet", model.ToOutlet);
+
+                    // 3. Add detail lines
+                    GeneralDataCollection oChildren = oGeneralData.Child("T2_CORETAX_DT");
+
+                    while (oChildren.Count > 0)
                     {
-                        TIN = line.GetProperty("U_T2_TIN")?.ToString(),
-                        DocEntry = line.GetProperty("U_T2_DocEntry")?.ToString(),
-                        LineNum = line.GetProperty("U_T2_LineNum")?.ToString(),
-                        InvDate = line.GetProperty("U_T2_Inv_Date")?.ToString(),
-                        NoDocument = line.GetProperty("U_T2_No_Doc")?.ToString(),
-                        ObjectType = line.GetProperty("U_T2_Object_Type")?.ToString(),
-                        ObjectName = line.GetProperty("U_T2_Object_Name")?.ToString(),
-                        BPCode = line.GetProperty("U_T2_BP_Code")?.ToString(),
-                        BPName = line.GetProperty("U_T2_BP_Name")?.ToString(),
-                        SellerIDTKU = line.GetProperty("U_T2_Seller_IDTKU")?.ToString(),
-                        BuyerDocument = line.GetProperty("U_T2_Buyer_Doc")?.ToString(),
-                        NomorNPWP = line.GetProperty("U_T2_Nomor_NPWP")?.ToString(),
-                        NPWPName = line.GetProperty("U_T2_NPWP_Name")?.ToString(),
-                        NPWPAddress = line.GetProperty("U_T2_NPWP_Address")?.ToString(),
-                        BuyerIDTKU = line.GetProperty("U_T2_Buyer_IDTKU")?.ToString(),
-                        ItemCode = line.GetProperty("U_T2_Item_Code")?.ToString(),
-                        ItemName = line.GetProperty("U_T2_Item_Name")?.ToString(),
-                        ItemUnit = line.GetProperty("U_T2_Item_Unit")?.ToString(),
-                        ItemPrice = line.GetProperty("U_T2_Item_Price") == null ? 0 : Convert.ToDouble(line.GetProperty("U_ItemPrice")),
-                        Qty = line.GetProperty("U_T2_Qty") == null ? 0 : Convert.ToDouble(line.GetProperty("U_Qty")),
-                        TotalDisc = line.GetProperty("U_T2_Total_Disc") == null ? 0 : Convert.ToDouble(line.GetProperty("U_TotalDisc")),
-                        TaxBase = line.GetProperty("U_T2_Tax_Base") == null ? 0 : Convert.ToDouble(line.GetProperty("U_TaxBase")),
-                        OtherTaxBase = line.GetProperty("U_T2_Other_Tax_Base") == null ? 0 : Convert.ToDouble(line.GetProperty("U_OtherTaxBase")),
-                        VATRate = line.GetProperty("U_T2_VAT_Rate") == null ? 0 : Convert.ToDouble(line.GetProperty("U_VATRate")),
-                        AmountVAT = line.GetProperty("U_T2_Amount_VAT") == null ? 0 : Convert.ToDouble(line.GetProperty("U_AmountVAT")),
-                        STLGRate = line.GetProperty("U_T2_STLG_Rate") == null ? 0 : Convert.ToDouble(line.GetProperty("U_STLGRate")),
-                        STLG = line.GetProperty("U_T2_STLG") == null ? 0 : Convert.ToDouble(line.GetProperty("U_STLG")),
-                        JenisPajak = line.GetProperty("U_T2_Jenis_Pajak")?.ToString(),
-                        KetTambahan = line.GetProperty("U_T2_Ket_Tambahan")?.ToString(),
-                        PajakPengganti = line.GetProperty("U_T2_Pajak_Pengganti")?.ToString(),
-                        Referensi = line.GetProperty("U_T2_Referensi")?.ToString(),
-                        Status = line.GetProperty("U_T2_Status")?.ToString(),
-                        KodeDokumenPendukung = line.GetProperty("U_T2_KodeDokPendukung")?.ToString(),
-                        Branch = line.GetProperty("U_T2_Branch")?.ToString(),
-                        AddInfo = line.GetProperty("U_T2_Add_Info")?.ToString(),
-                        BuyerCountry = line.GetProperty("U_T2_Buyer_Country")?.ToString(),
-                        BuyerEmail = line.GetProperty("U_T2_Buyer_Email")?.ToString()
-                    };
+                        oChildren.Remove(0);
+                    }
 
-                    model.Detail.Add(detail);
+                    foreach (var line in model.Detail)
+                    {
+                        GeneralData oChild = oChildren.Add();
+
+                        if (!string.IsNullOrEmpty(line.TIN)) oChild.SetProperty("U_T2_TIN", line.TIN);
+                        if (!string.IsNullOrEmpty(line.DocEntry)) oChild.SetProperty("U_T2_DocEntry", line.DocEntry);
+                        if (!string.IsNullOrEmpty(line.LineNum)) oChild.SetProperty("U_T2_LineNum", line.LineNum);
+                        if (!string.IsNullOrEmpty(line.InvDate)) oChild.SetProperty("U_T2_Inv_Date", line.InvDate);
+                        if (!string.IsNullOrEmpty(line.NoDocument)) oChild.SetProperty("U_T2_No_Doc", line.NoDocument);
+                        if (!string.IsNullOrEmpty(line.ObjectType)) oChild.SetProperty("U_T2_Object_Type", line.ObjectType);
+                        if (!string.IsNullOrEmpty(line.ObjectName)) oChild.SetProperty("U_T2_Object_Name", line.ObjectName);
+                        if (!string.IsNullOrEmpty(line.BPCode)) oChild.SetProperty("U_T2_BP_Code", line.BPCode);
+                        if (!string.IsNullOrEmpty(line.BPName)) oChild.SetProperty("U_T2_BP_Name", line.BPName);
+                        if (!string.IsNullOrEmpty(line.SellerIDTKU)) oChild.SetProperty("U_T2_Seller_IDTKU", line.SellerIDTKU);
+                        if (!string.IsNullOrEmpty(line.BuyerDocument)) oChild.SetProperty("U_T2_Buyer_Doc", line.BuyerDocument);
+                        if (!string.IsNullOrEmpty(line.NomorNPWP)) oChild.SetProperty("U_T2_Nomor_NPWP", line.NomorNPWP);
+                        if (!string.IsNullOrEmpty(line.NPWPName)) oChild.SetProperty("U_T2_NPWP_Name", line.NPWPName);
+                        if (!string.IsNullOrEmpty(line.NPWPAddress)) oChild.SetProperty("U_T2_NPWP_Address", line.NPWPAddress);
+                        if (!string.IsNullOrEmpty(line.BuyerIDTKU)) oChild.SetProperty("U_T2_Buyer_IDTKU", line.BuyerIDTKU);
+                        if (!string.IsNullOrEmpty(line.ItemCode)) oChild.SetProperty("U_T2_Item_Code", line.ItemCode);
+                        if (!string.IsNullOrEmpty(line.ItemName)) oChild.SetProperty("U_T2_Item_Name", line.ItemName);
+                        if (!string.IsNullOrEmpty(line.ItemUnit)) oChild.SetProperty("U_T2_Item_Unit", line.ItemUnit);
+
+                        // --- numeric fields (pastikan UDF tipe number/price/rate) ---
+                        if (line.ItemPrice > 0) oChild.SetProperty("U_T2_Item_Price", line.ItemPrice);
+                        if (line.Qty > 0) oChild.SetProperty("U_T2_Qty", line.Qty);
+                        if (line.TotalDisc > 0) oChild.SetProperty("U_T2_Total_Disc", line.TotalDisc);
+                        if (line.TaxBase > 0) oChild.SetProperty("U_T2_Tax_Base", line.TaxBase);
+                        if (line.OtherTaxBase > 0) oChild.SetProperty("U_T2_Other_Tax_Base", line.OtherTaxBase);
+                        if (line.VATRate > 0) oChild.SetProperty("U_T2_VAT_Rate", line.VATRate);
+                        if (line.AmountVAT > 0) oChild.SetProperty("U_T2_Amount_VAT", line.AmountVAT);
+                        if (line.STLGRate > 0) oChild.SetProperty("U_T2_STLG_Rate", line.STLGRate);
+                        if (line.STLG > 0) oChild.SetProperty("U_T2_STLG", line.STLG);
+
+                        // --- string fields ---
+                        if (!string.IsNullOrEmpty(line.JenisPajak)) oChild.SetProperty("U_T2_Jenis_Pajak", line.JenisPajak);
+                        if (!string.IsNullOrEmpty(line.KetTambahan)) oChild.SetProperty("U_T2_Ket_Tambahan", line.KetTambahan);
+                        if (!string.IsNullOrEmpty(line.PajakPengganti)) oChild.SetProperty("U_T2_Pajak_Pengganti", line.PajakPengganti);
+                        if (!string.IsNullOrEmpty(line.Referensi)) oChild.SetProperty("U_T2_Referensi", line.Referensi);
+                        if (!string.IsNullOrEmpty(line.Status)) oChild.SetProperty("U_T2_Status", line.Status);
+                        if (!string.IsNullOrEmpty(line.KodeDokumenPendukung)) oChild.SetProperty("U_T2_Kode_Dok_Pendukung", line.KodeDokumenPendukung);
+                        if (!string.IsNullOrEmpty(line.BranchCode)) oChild.SetProperty("U_T2_Branch_Code", line.BranchCode);
+                        if (!string.IsNullOrEmpty(line.BranchName)) oChild.SetProperty("U_T2_Branch_Name", line.BranchName);
+                        if (!string.IsNullOrEmpty(line.OutletCode)) oChild.SetProperty("U_T2_Outlet_Code", line.OutletCode);
+                        if (!string.IsNullOrEmpty(line.OutletName)) oChild.SetProperty("U_T2_Outlet_Name", line.OutletName);
+                        if (!string.IsNullOrEmpty(line.AddInfo)) oChild.SetProperty("U_T2_Add_Info", line.AddInfo);
+                        if (!string.IsNullOrEmpty(line.BuyerCountry)) oChild.SetProperty("U_T2_Buyer_Country", line.BuyerCountry);
+                        if (!string.IsNullOrEmpty(line.BuyerEmail)) oChild.SetProperty("U_T2_Buyer_Email", line.BuyerEmail);
+                    }
+                    // 5. Save update
+                    oGeneralService.Update(oGeneralData);
+
+                    return Task.FromResult((int)oGeneralData.GetProperty("DocEntry"));
                 }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error UpdateDataCoretax: {ex.Message}", ex);
+                }
+            });
+        }
 
-                return model;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error while getting Coretax UDO DocEntry={docEntry}: {ex.Message}", ex);
-            }
+        public static Task<CoretaxModel> GetCoretaxByKey(int docEntry)
+        {
+            return Task.Run(()=> {
+                try
+                {
+                    Company oCompany = CompanyService.GetCompany();
+
+                    SAPbobsCOM.CompanyService oCompanyService = oCompany.GetCompanyService();
+                
+                    SAPbobsCOM.GeneralService oGeneralService = oCompanyService.GetGeneralService("T2_CORETAX");
+                
+                    SAPbobsCOM.GeneralDataParams oParams = (SAPbobsCOM.GeneralDataParams)oGeneralService.GetDataInterface(
+                        SAPbobsCOM.GeneralServiceDataInterfaces.gsGeneralDataParams);
+                    oParams.SetProperty("DocEntry", docEntry);
+                
+                    SAPbobsCOM.GeneralData oHeader = oGeneralService.GetByParams(oParams);
+
+                    var series = GetSeriesByDocEntry("T2_CORETAX", docEntry);
+
+                    DateTime? fromDate = null;
+                    DateTime? toDate = null;
+                    DateTime? postDate = null;
+                    DateTime? docDate = null;
+                    string fromDateStr = oHeader.GetProperty("U_T2_From_Date").ToString();
+                    string toDateStr = oHeader.GetProperty("U_T2_To_Date").ToString();
+                    string postDateStr = oHeader.GetProperty("U_T2_Posting_Date").ToString();
+                    string docDateStr = oHeader.GetProperty("U_T2_Doc_Date").ToString();
+                    if (!string.IsNullOrEmpty(fromDateStr) && !fromDateStr.StartsWith("30/12/1899"))
+                    {
+                        fromDate = Convert.ToDateTime(oHeader.GetProperty("U_T2_From_Date"));
+                    }
+                    if (!string.IsNullOrEmpty(toDateStr) && !toDateStr.StartsWith("30/12/1899"))
+                    {
+                        toDate = Convert.ToDateTime(oHeader.GetProperty("U_T2_To_Date"));
+                    }
+                    if (!string.IsNullOrEmpty(docDateStr) && !docDateStr.StartsWith("30/12/1899"))
+                    {
+                        docDate = Convert.ToDateTime(oHeader.GetProperty("U_T2_Doc_Date"));
+                    }
+                    if(!string.IsNullOrEmpty(postDateStr) && !postDateStr.StartsWith("30/12/1899"))
+                    {
+                        postDate = Convert.ToDateTime(oHeader.GetProperty("U_T2_Posting_Date"));
+                    }
+
+                    var model = new CoretaxModel
+                    {
+                        DocEntry = Convert.ToInt32(oHeader.GetProperty("DocEntry")),
+                        DocNum = Convert.ToInt32(oHeader.GetProperty("DocNum")),
+                        DocDate = docDate,
+                        PostDate = postDate,
+                        SeriesId = series.SeriesId,
+                        SeriesName = series.SeriesName,
+                        IsARInvoice = (oHeader.GetProperty("U_T2_AR_INV")?.ToString() == "Y"),
+                        IsARDownPayment = (oHeader.GetProperty("U_T2_AR_DP")?.ToString() == "Y"),
+                        IsARCreditMemo = (oHeader.GetProperty("U_T2_AR_CM")?.ToString() == "Y"),
+
+                        FromDocNum = oHeader.GetProperty("U_T2_From_Doc") == null ? null : (int?)Convert.ToInt32(oHeader.GetProperty("U_T2_From_Doc")),
+                        ToDocNum = oHeader.GetProperty("U_T2_To_Doc") == null ? null : (int?)Convert.ToInt32(oHeader.GetProperty("U_T2_To_Doc")),
+                        FromDocEntry = oHeader.GetProperty("U_T2_From_Doc_Entry") == null ? null : (int?)Convert.ToInt32(oHeader.GetProperty("U_T2_From_Doc_Entry")),
+                        ToDocEntry = oHeader.GetProperty("U_T2_To_Doc_Entry") == null ? null : (int?)Convert.ToInt32(oHeader.GetProperty("U_T2_To_Doc_Entry")),
+                        FromDate = fromDate,
+                        ToDate = toDate,
+
+                        FromCust = oHeader.GetProperty("U_T2_From_Cust")?.ToString(),
+                        ToCust = oHeader.GetProperty("U_T2_To_Cust")?.ToString(),
+                        FromBranch = oHeader.GetProperty("U_T2_From_Branch")?.ToString(),
+                        ToBranch = oHeader.GetProperty("U_T2_To_Branch")?.ToString(),
+                        FromOutlet = oHeader.GetProperty("U_T2_From_Outlet")?.ToString(),
+                        ToOutlet = oHeader.GetProperty("U_T2_To_Outlet")?.ToString(),
+
+                        Status = oHeader.GetProperty("Status")?.ToString() ?? "O"
+                    };
+                
+                    SAPbobsCOM.GeneralDataCollection children = oHeader.Child("T2_CORETAX_DT"); // UDO child table name
+                    foreach (SAPbobsCOM.GeneralData line in children)
+                    {
+                        var detail = new InvoiceDataModel
+                        {
+                            TIN = line.GetProperty("U_T2_TIN")?.ToString(),
+                            DocEntry = line.GetProperty("U_T2_DocEntry")?.ToString(),
+                            LineNum = line.GetProperty("U_T2_LineNum")?.ToString(),
+                            InvDate = line.GetProperty("U_T2_Inv_Date")?.ToString(),
+                            NoDocument = line.GetProperty("U_T2_No_Doc")?.ToString(),
+                            ObjectType = line.GetProperty("U_T2_Object_Type")?.ToString(),
+                            ObjectName = line.GetProperty("U_T2_Object_Name")?.ToString(),
+                            BPCode = line.GetProperty("U_T2_BP_Code")?.ToString(),
+                            BPName = line.GetProperty("U_T2_BP_Name")?.ToString(),
+                            SellerIDTKU = line.GetProperty("U_T2_Seller_IDTKU")?.ToString(),
+                            BuyerDocument = line.GetProperty("U_T2_Buyer_Doc")?.ToString(),
+                            NomorNPWP = line.GetProperty("U_T2_Nomor_NPWP")?.ToString(),
+                            NPWPName = line.GetProperty("U_T2_NPWP_Name")?.ToString(),
+                            NPWPAddress = line.GetProperty("U_T2_NPWP_Address")?.ToString(),
+                            BuyerIDTKU = line.GetProperty("U_T2_Buyer_IDTKU")?.ToString(),
+                            ItemCode = line.GetProperty("U_T2_Item_Code")?.ToString(),
+                            ItemName = line.GetProperty("U_T2_Item_Name")?.ToString(),
+                            ItemUnit = line.GetProperty("U_T2_Item_Unit")?.ToString(),
+                            ItemPrice = line.GetProperty("U_T2_Item_Price") == null ? 0 : Convert.ToDouble(line.GetProperty("U_T2_Item_Price")),
+                            Qty = line.GetProperty("U_T2_Qty") == null ? 0 : Convert.ToDouble(line.GetProperty("U_T2_Qty")),
+                            TotalDisc = line.GetProperty("U_T2_Total_Disc") == null ? 0 : Convert.ToDouble(line.GetProperty("U_T2_Total_Disc")),
+                            TaxBase = line.GetProperty("U_T2_Tax_Base") == null ? 0 : Convert.ToDouble(line.GetProperty("U_T2_Tax_Base")),
+                            OtherTaxBase = line.GetProperty("U_T2_Other_Tax_Base") == null ? 0 : Convert.ToDouble(line.GetProperty("U_T2_Other_Tax_Base")),
+                            VATRate = line.GetProperty("U_T2_VAT_Rate") == null ? 0 : Convert.ToDouble(line.GetProperty("U_T2_VAT_Rate")),
+                            AmountVAT = line.GetProperty("U_T2_Amount_VAT") == null ? 0 : Convert.ToDouble(line.GetProperty("U_T2_Amount_VAT")),
+                            STLGRate = line.GetProperty("U_T2_STLG_Rate") == null ? 0 : Convert.ToDouble(line.GetProperty("U_T2_STLG_Rate")),
+                            STLG = line.GetProperty("U_T2_STLG") == null ? 0 : Convert.ToDouble(line.GetProperty("U_T2_STLG")),
+                            JenisPajak = line.GetProperty("U_T2_Jenis_Pajak")?.ToString(),
+                            KetTambahan = line.GetProperty("U_T2_Ket_Tambahan")?.ToString(),
+                            PajakPengganti = line.GetProperty("U_T2_Pajak_Pengganti")?.ToString(),
+                            Referensi = line.GetProperty("U_T2_Referensi")?.ToString(),
+                            Status = line.GetProperty("U_T2_Status")?.ToString(),
+                            KodeDokumenPendukung = line.GetProperty("U_T2_Kode_Dok_Pendukung")?.ToString(),
+                            BranchCode = line.GetProperty("U_T2_Branch_Code")?.ToString(),
+                            BranchName = line.GetProperty("U_T2_Branch_Name")?.ToString(),
+                            OutletCode = line.GetProperty("U_T2_Outlet_Code")?.ToString(),
+                            OutletName = line.GetProperty("U_T2_Outlet_Name")?.ToString(),
+                            AddInfo = line.GetProperty("U_T2_Add_Info")?.ToString(),
+                            BuyerCountry = line.GetProperty("U_T2_Buyer_Country")?.ToString(),
+                            BuyerEmail = line.GetProperty("U_T2_Buyer_Email")?.ToString()
+                        };
+
+                        model.Detail.Add(detail);
+                    }
+
+                    return Task.FromResult(model);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error while getting Coretax UDO DocEntry={docEntry}: {ex.Message}", ex);
+                }
+            });
         }
 
         public static (int SeriesId, string SeriesName) GetSeriesByDocEntry(string udoTable, int docEntry)
@@ -244,11 +385,42 @@ namespace SBOAddonCoreTax.Services
             }
         }
 
+        public static string GetSeriesName(int seriesId)
+        {
+            Company oCompany = CompanyService.GetCompany();
+            Recordset oRs = (Recordset)oCompany.GetBusinessObject(BoObjectTypes.BoRecordset);
+            string seriesName = "";
+            try
+            {
+                string sql = $@"
+                SELECT ISNULL(T0.SeriesName, '') AS SeriesName
+                FROM NNM1 T0
+                WHERE T0.Series = {seriesId}";
 
-        private static int GetSeriesIdCoretax(Company oCompany)
+                oRs.DoQuery(sql);
+
+                if (!oRs.EoF)
+                {
+                    seriesName =  oRs.Fields.Item("SeriesName").Value.ToString();
+                }
+
+                return seriesName;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error get series: " + ex.Message);
+            }
+            finally
+            {
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(oRs);
+            }
+        }
+
+        public static int GetSeriesIdCoretax()
         {
             try
             {
+                Company oCompany = CompanyService.GetCompany();
                 Recordset oRecordset = (Recordset)oCompany.GetBusinessObject(BoObjectTypes.BoRecordset);
 
                 // panggil SQL function
@@ -267,6 +439,202 @@ namespace SBOAddonCoreTax.Services
             catch (Exception ex)
             {
                 throw new Exception($"Error GetSeriesIdCoretax2025: {ex.Message}", ex);
+            }
+        }
+
+        public static Task<List<FilterDataModel>> GetDataFilter(
+            Dictionary<string, bool> selectedCkBox,
+            string dtFrom, string dtTo, string docFrom, string docTo, string custFrom, string custTo,
+            string branchFrom, string branchTo, string outFrom, string outTo
+            )
+        {
+            return Task.Run(()=> {
+                List<FilterDataModel> result = new List<FilterDataModel>();
+                try
+                {
+                    SAPbobsCOM.Company oCompany = Services.CompanyService.GetCompany();
+                    List<string> docList = selectedCkBox.Where((ck) => ck.Value == true).Select((c) => c.Key).ToList();
+                    SAPbobsCOM.Recordset rs = (SAPbobsCOM.Recordset)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset);
+
+                    string query = $@"EXEC [dbo].[T2_SP_CORETAX_HEADER] 
+    @selected_doc = '{string.Join(",", docList)}'";
+
+                    List<string> filters = new List<string>();
+
+                    if (!string.IsNullOrEmpty(dtFrom))
+                    {
+                        filters.Add($"@from_date = '{dtFrom}'");
+                    }
+                    if (!string.IsNullOrEmpty(dtTo))
+                    {
+                        filters.Add($"@to_date = '{dtTo}'");
+                    }
+                    if (!string.IsNullOrEmpty(docFrom))
+                    {
+                        filters.Add($"@from_docentry = {docFrom}");
+                    }
+                    if (!string.IsNullOrEmpty(docTo))
+                    {
+                        filters.Add($"@to_docentry = {docTo}");
+                    }
+                    if (!string.IsNullOrEmpty(custFrom))
+                    {
+                        filters.Add($"@from_cust = '{custFrom}'");
+                    }
+                    if (!string.IsNullOrEmpty(custTo))
+                    {
+                        filters.Add($"@to_cust = '{custTo}'");
+                    }
+                    if (!string.IsNullOrEmpty(branchFrom))
+                    {
+                        filters.Add($"@from_branch = {branchFrom}");
+                    }
+                    if (!string.IsNullOrEmpty(branchTo))
+                    {
+                        filters.Add($"@to_branch = {branchTo}");
+                    }
+                    if (!string.IsNullOrEmpty(outFrom))
+                    {
+                        filters.Add($"@from_outlet = {outFrom}");
+                    }
+                    if (!string.IsNullOrEmpty(outTo))
+                    {
+                        filters.Add($"@to_outlet = {outTo}");
+                    }
+
+                    // join filters with commas
+                    if (filters.Count > 0)
+                    {
+                        query += ", " + string.Join(", ", filters);
+                    }
+
+                    rs.DoQuery(query);
+
+                    while (!rs.EoF)
+                    {
+                        var model = new FilterDataModel
+                        {
+                            DocEntry = rs.Fields.Item("DocEntry").Value?.ToString(),
+                            DocNo = rs.Fields.Item("NoDocument").Value?.ToString(),
+                            CardCode = rs.Fields.Item("BPCode").Value?.ToString(),
+                            CardName = rs.Fields.Item("BPName").Value?.ToString(),
+                            ObjType = rs.Fields.Item("ObjectType").Value?.ToString(),
+                            ObjName = rs.Fields.Item("ObjectName").Value?.ToString(),
+                            PostDate = rs.Fields.Item("InvDate").Value?.ToString(),
+                            BranchCode = rs.Fields.Item("BranchCode").Value?.ToString(),
+                            BranchName = rs.Fields.Item("BranchName").Value?.ToString(),
+                            OutletCode = rs.Fields.Item("OutletCode").Value?.ToString(),
+                            OutletName = rs.Fields.Item("OutletName").Value?.ToString(),
+                            Selected = false,
+                        };
+
+                        result.Add(model);
+                        rs.MoveNext();
+                    }
+                }
+                catch (Exception)
+                {
+
+                    throw;
+                }
+                return Task.FromResult(result);
+            });
+        }
+
+        public static Task<List<InvoiceDataModel>> GetDataGenerate(List<FilterDataModel> filteredHeader)
+        {
+            return Task.Run(()=> {
+                List<InvoiceDataModel> result = new List<InvoiceDataModel>();
+                SAPbobsCOM.Company oCompany = Services.CompanyService.GetCompany();
+                SAPbobsCOM.Recordset rs = (SAPbobsCOM.Recordset)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset);
+                foreach (var item in filteredHeader)
+                {
+                    string query = $@"EXEC [dbo].[T2_SP_CORETAX_GENERATE] 
+    @DocEntry = '{item.DocEntry}', @ObjectType = '{item.ObjType}'";
+                    rs.DoQuery(query);
+
+                    while (!rs.EoF)
+                    {
+                        var model = new InvoiceDataModel
+                        {
+                            //No = rs.Fields.Item("No").Value?.ToString(),
+                            TIN = rs.Fields.Item("TIN").Value?.ToString(),
+                            DocEntry = rs.Fields.Item("DocEntry").Value?.ToString(),
+                            LineNum = rs.Fields.Item("LineNum").Value?.ToString(),
+                            InvDate = rs.Fields.Item("InvDate").Value?.ToString(),
+                            NoDocument = rs.Fields.Item("NoDocument").Value?.ToString(),
+                            ObjectType = rs.Fields.Item("ObjectType").Value?.ToString(),
+                            ObjectName = rs.Fields.Item("ObjectName").Value?.ToString(),
+                            BPCode = rs.Fields.Item("BPCode").Value?.ToString(),
+                            BPName = rs.Fields.Item("BPName").Value?.ToString(),
+                            SellerIDTKU = rs.Fields.Item("SellerIDTKU").Value?.ToString(),
+                            BuyerDocument = rs.Fields.Item("BuyerDocument").Value?.ToString(),
+                            NomorNPWP = rs.Fields.Item("NomorNPWP").Value?.ToString(),
+                            NPWPName = rs.Fields.Item("NPWPName").Value?.ToString(),
+                            NPWPAddress = rs.Fields.Item("NPWPAddress").Value?.ToString(),
+                            BuyerIDTKU = rs.Fields.Item("BuyerIDTKU").Value?.ToString(),
+                            ItemCode = rs.Fields.Item("ItemCode").Value?.ToString(),
+                            DefItemCode = rs.Fields.Item("DefItemCode").Value?.ToString(),
+                            ItemName = rs.Fields.Item("ItemName").Value?.ToString(),
+                            ItemUnit = rs.Fields.Item("ItemUnit").Value?.ToString(),
+
+                            // --- decimals (safe conversion) ---
+                            ItemPrice = Convert.ToDouble(rs.Fields.Item("ItemPrice").Value ?? 0),
+                            Qty = Convert.ToDouble(rs.Fields.Item("Qty").Value ?? 0),
+                            TotalDisc = Convert.ToDouble(rs.Fields.Item("TotalDisc").Value ?? 0),
+                            TaxBase = Convert.ToDouble(rs.Fields.Item("TaxBase").Value ?? 0),
+                            OtherTaxBase = Convert.ToDouble(rs.Fields.Item("OtherTaxBase").Value ?? 0),
+                            VATRate = Convert.ToDouble(rs.Fields.Item("VATRate").Value ?? 0),
+                            AmountVAT = Convert.ToDouble(rs.Fields.Item("AmountVAT").Value ?? 0),
+                            STLGRate = Convert.ToDouble(rs.Fields.Item("STLGRate").Value ?? 0),
+                            STLG = Convert.ToDouble(rs.Fields.Item("STLG").Value ?? 0),
+
+                            // --- strings ---
+                            JenisPajak = rs.Fields.Item("JenisPajak").Value?.ToString(),
+                            KetTambahan = rs.Fields.Item("KetTambahan").Value?.ToString(),
+                            PajakPengganti = rs.Fields.Item("PajakPengganti").Value?.ToString(),
+                            Referensi = rs.Fields.Item("Referensi").Value?.ToString(),
+                            Status = rs.Fields.Item("Status").Value?.ToString(),
+                            KodeDokumenPendukung = rs.Fields.Item("KodeDokumenPendukung").Value?.ToString(),
+                            BranchCode = rs.Fields.Item("BranchCode").Value?.ToString(),
+                            BranchName = rs.Fields.Item("BranchName").Value?.ToString(),
+                            OutletCode = rs.Fields.Item("OutletCode").Value?.ToString(),
+                            OutletName = rs.Fields.Item("OutletName").Value?.ToString(),
+                            AddInfo = rs.Fields.Item("AddInfo").Value?.ToString(),
+                            BuyerCountry = rs.Fields.Item("BuyerCountry").Value?.ToString(),
+                            BuyerEmail = rs.Fields.Item("BuyerEmail").Value?.ToString(),
+                        };
+
+                        result.Add(model);
+                        rs.MoveNext();
+                    }
+
+                }
+                return Task.FromResult(result);
+            });
+        }
+
+        public static Task<int> GetLastDocNum()
+        {
+            int docNum = 0;
+            try
+            {
+                SAPbobsCOM.Company oCompany = Services.CompanyService.GetCompany();
+                SAPbobsCOM.Recordset rs = (SAPbobsCOM.Recordset)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset);
+                int seriesId = 0;
+                seriesId = GetSeriesIdCoretax();
+                string query = $"SELECT (MAX(ISNULL(DocNum, 0)) + 1) AS LastDocNum FROM [@T2_CORETAX] WHERE Series = '{seriesId}'";
+                rs.DoQuery(query);
+                if (!rs.EoF)
+                {
+                    docNum = (int)rs.Fields.Item("LastDocNum").Value;
+                }
+                return Task.FromResult(docNum);
+            }
+            catch (Exception e)
+            {
+
+                throw e;
             }
         }
     }

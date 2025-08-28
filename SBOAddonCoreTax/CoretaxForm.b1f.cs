@@ -14,8 +14,6 @@ namespace SBOAddonCoreTax
         private SAPbouiCOM.StaticText lDate;
         private SAPbouiCOM.EditText TFromDt;
         private SAPbouiCOM.EditText TToDt;
-        private SAPbouiCOM.Grid GRes;
-        private SAPbouiCOM.Button BtAdd;
         private SAPbouiCOM.Button BtCancel;
         private SAPbouiCOM.StaticText lDocF;
         private SAPbouiCOM.EditText TFromDoc;
@@ -46,8 +44,6 @@ namespace SBOAddonCoreTax
             this.TToDt = ((SAPbouiCOM.EditText)(this.GetItem("TToDt").Specific));
             this.BtFind = ((SAPbouiCOM.Button)(this.GetItem("BtFind").Specific));
             this.BtGen = ((SAPbouiCOM.Button)(this.GetItem("BtGen").Specific));
-            this.GRes = ((SAPbouiCOM.Grid)(this.GetItem("GdRes").Specific));
-            this.BtAdd = ((SAPbouiCOM.Button)(this.GetItem("BtAdd").Specific));
             this.BtCancel = ((SAPbouiCOM.Button)(this.GetItem("BtCancel").Specific));
             this.lDocF = ((SAPbouiCOM.StaticText)(this.GetItem("lDocF").Specific));
             this.TFromDoc = ((SAPbouiCOM.EditText)(this.GetItem("TFromDoc").Specific));
@@ -56,7 +52,6 @@ namespace SBOAddonCoreTax
             this.TCustFrom = ((SAPbouiCOM.EditText)(this.GetItem("TCustFrom").Specific));
             this.TCustTo = ((SAPbouiCOM.EditText)(this.GetItem("TCustTo").Specific));
             this.TCustTo.KeyDownAfter += new SAPbouiCOM._IEditTextEvents_KeyDownAfterEventHandler(this.TCustTo_KeyDownAfter);
-            this.Grid0 = ((SAPbouiCOM.Grid)(this.GetItem("GdFind").Specific));
             this.StaticText0 = ((SAPbouiCOM.StaticText)(this.GetItem("lToDt").Specific));
             this.StaticText1 = ((SAPbouiCOM.StaticText)(this.GetItem("lToDoc").Specific));
             this.StaticText2 = ((SAPbouiCOM.StaticText)(this.GetItem("lToCust").Specific));
@@ -84,6 +79,14 @@ namespace SBOAddonCoreTax
             this.CbOtlTo = ((SAPbouiCOM.ComboBox)(this.GetItem("CbOtlTo").Specific));
             this.Button0 = ((SAPbouiCOM.Button)(this.GetItem("BtXML").Specific));
             this.Button1 = ((SAPbouiCOM.Button)(this.GetItem("BtCSV").Specific));
+            this.StaticText15 = ((SAPbouiCOM.StaticText)(this.GetItem("lDocDt").Specific));
+            this.EditText0 = ((SAPbouiCOM.EditText)(this.GetItem("TDocDt").Specific));
+            this.StaticText16 = ((SAPbouiCOM.StaticText)(this.GetItem("lPostDt").Specific));
+            this.EditText1 = ((SAPbouiCOM.EditText)(this.GetItem("TPostDt").Specific));
+            this.EditText2 = ((SAPbouiCOM.EditText)(this.GetItem("TSeries").Specific));
+            this.Button3 = ((SAPbouiCOM.Button)(this.GetItem("BtSave").Specific));
+            this.Matrix0 = ((SAPbouiCOM.Matrix)(this.GetItem("MtDetail").Specific));
+            this.Matrix1 = ((SAPbouiCOM.Matrix)(this.GetItem("MtFind").Specific));
             this.OnCustomInitialize();
 
         }
@@ -101,8 +104,6 @@ namespace SBOAddonCoreTax
         {
             
         }
-
-        private SAPbouiCOM.Grid Grid0;
 
 
         private SAPbouiCOM.StaticText StaticText0;
@@ -143,5 +144,13 @@ namespace SBOAddonCoreTax
 
         private SAPbouiCOM.Button Button0;
         private SAPbouiCOM.Button Button1;
+        private SAPbouiCOM.StaticText StaticText15;
+        private SAPbouiCOM.EditText EditText0;
+        private SAPbouiCOM.StaticText StaticText16;
+        private SAPbouiCOM.EditText EditText1;
+        private SAPbouiCOM.EditText EditText2;
+        private SAPbouiCOM.Button Button3;
+        private SAPbouiCOM.Matrix Matrix0;
+        private SAPbouiCOM.Matrix Matrix1;
     }
 }
