@@ -31,6 +31,8 @@ namespace SBOAddonCoreTax
         private TaxInvoiceBulk taxInvoiceBulk = new TaxInvoiceBulk();
         private string FORMUID = "";
         SAPbouiCOM.ProgressBar _pb = null;
+        private Dictionary<string, string> cbBranchValues = new Dictionary<string, string>();
+        private Dictionary<string, string> cbOutletValues = new Dictionary<string, string>();
 
         public void AddMenuItems()
         {
@@ -131,13 +133,14 @@ namespace SBOAddonCoreTax
                 {
                     try
                     {
-                        coretaxModel = await TransactionService.GetCoretaxByKey(2);
+                        coretaxModel = await TransactionService.GetCoretaxByKey(10);
                     }
                     catch (Exception)
                     {
                         throw;
                     }
-                }).ContinueWith(task=> {
+                }).ContinueWith(task =>
+                {
                     MapModelToUI(oForm);
                 });
                 BubbleEvent = false;
@@ -167,50 +170,130 @@ namespace SBOAddonCoreTax
                         if(pVal.ItemUID == "TFromDt")
                         {
                             SAPbouiCOM.EditText oEdit = (SAPbouiCOM.EditText)oForm.Items.Item("TFromDt").Specific;
-
+                            var oldVal = coretaxModel.FromDate;
                             if (string.IsNullOrWhiteSpace(oEdit.Value))
                             {
                                 coretaxModel.FromDate = null;
-                                ResetDetail(oForm);
                             }
                             else if (DateTime.TryParseExact(oEdit.Value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDate))
                             {
                                 if (parsedDate != coretaxModel.FromDate)
                                 {
                                     coretaxModel.FromDate = parsedDate;
-                                    ResetDetail(oForm);
                                 }
                             }
                             else
                             {
                                 coretaxModel.FromDate = null;
+                            }
+                            if (oldVal != coretaxModel.FromDate)
+                            {
                                 ResetDetail(oForm);
                             }
                         }
                         if (pVal.ItemUID == "TToDt")
                         {
                             SAPbouiCOM.EditText oEdit = (SAPbouiCOM.EditText)oForm.Items.Item("TToDt").Specific;
-
+                            var oldVal = coretaxModel.ToDate;
                             if (string.IsNullOrWhiteSpace(oEdit.Value))
                             {
                                 coretaxModel.ToDate = null;
-                                ResetDetail(oForm);
                             }
                             else if (DateTime.TryParseExact(oEdit.Value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDate))
                             {
                                 if (parsedDate != coretaxModel.ToDate)
                                 {
                                     coretaxModel.ToDate = parsedDate;
-                                    ResetDetail(oForm);
                                 }
                             }
                             else
                             {
                                 coretaxModel.ToDate = null;
+                            }
+                            if (oldVal != coretaxModel.ToDate)
+                            {
                                 ResetDetail(oForm);
                             }
                         }
-                        
+                        if (pVal.ItemUID == "TFromDoc")
+                        {
+                            SAPbouiCOM.EditText oEdit = (SAPbouiCOM.EditText)oForm.Items.Item("TFromDoc").Specific;
+                            var oldVal = coretaxModel.FromDocNum;
+
+                            if (string.IsNullOrWhiteSpace(oEdit.Value))
+                            {
+                                // clear model
+                                coretaxModel.FromDocNum = null;
+                                coretaxModel.FromDocEntry = null;
+
+                                if (oldVal != null) // only reset if value actually changed
+                                {
+                                    ResetDetail(oForm);
+                                }
+                            }
+                            else if (int.TryParse(oEdit.Value, out int newVal))
+                            {
+                                if (oldVal == null || newVal != oldVal)
+                                {
+                                    coretaxModel.FromDocNum = newVal;
+                                    ResetDetail(oForm);
+                                }
+                            }
+                        }
+
+                        if (pVal.ItemUID == "TToDoc")
+                        {
+                            SAPbouiCOM.EditText oEdit = (SAPbouiCOM.EditText)oForm.Items.Item("TToDoc").Specific;
+                            var oldVal = coretaxModel.ToDocNum;
+
+                            if (string.IsNullOrWhiteSpace(oEdit.Value))
+                            {
+                                coretaxModel.ToDocNum = null;
+                                coretaxModel.ToDocEntry = null;
+
+                                if (oldVal != null)
+                                {
+                                    ResetDetail(oForm);
+                                }
+                            }
+                            else if (int.TryParse(oEdit.Value, out int newVal))
+                            {
+                                if (oldVal == null || newVal != oldVal)
+                                {
+                                    coretaxModel.ToDocNum = newVal;
+                                    ResetDetail(oForm);
+                                }
+                            }
+                        }
+
+                        if (pVal.ItemUID == "TCustFrom")
+                        {
+                            var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item("TCustFrom").Specific;
+                            var newVal = string.IsNullOrWhiteSpace(oEdit.Value) ? null : oEdit.Value;
+                            var oldVal = coretaxModel.FromCust;
+
+                            // update model if changed
+                            if (!string.Equals(newVal, oldVal, StringComparison.Ordinal))
+                            {
+                                coretaxModel.FromCust = newVal;
+                                ResetDetail(oForm);
+                            }
+                        }
+
+                        if (pVal.ItemUID == "TCustTo")
+                        {
+                            var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item("TCustTo").Specific;
+                            var newVal = string.IsNullOrWhiteSpace(oEdit.Value) ? null : oEdit.Value;
+                            var oldVal = coretaxModel.ToCust;
+
+                            // update model if changed
+                            if (!string.Equals(newVal, oldVal, StringComparison.Ordinal))
+                            {
+                                coretaxModel.ToCust = newVal;
+                                ResetDetail(oForm);
+                            }
+                        }
+
                     }
 
                     if (pVal.EventType == SAPbouiCOM.BoEventTypes.et_FORM_ACTIVATE && !pVal.BeforeAction)
@@ -324,19 +407,80 @@ namespace SBOAddonCoreTax
                                 });
                             }
                         }
-                        
-                    }
 
-                    if (pVal.ItemUID == "MtFind"
-                    && pVal.BeforeAction
-                    && pVal.EventType == SAPbouiCOM.BoEventTypes.et_CLICK)
-                    {
-                        if (pVal.ColUID != "Col_10")
+                        if (pVal.ItemUID == "BtClose")
                         {
-                            BubbleEvent = false; // stop opening editor
-                            return;
+                            SAPbouiCOM.Form oForm = Application.SBO_Application.Forms.Item(FormUID);
+                            // Confirmation dialog
+                            int response = Application.SBO_Application.MessageBox(
+                                $"Are you sure you want to close this document?",
+                                1,
+                                "Yes",
+                                "No",
+                                ""
+                            );
+
+                            if (response == 1) // Yes
+                            {
+                                Task.Run(async() => {
+                                    int docEntry = coretaxModel.DocEntry ?? 0;
+
+                                    try
+                                    {
+                                        await TransactionService.CloseCoretax(docEntry);
+                                        await TransactionService.UpdateStatusInv(coretaxModel);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Application.SBO_Application.StatusBar.SetText($"Error closing: {ex.Message}",
+                                            SAPbouiCOM.BoMessageTime.bmt_Long, SAPbouiCOM.BoStatusBarMessageType.smt_Error);
+                                        throw;
+                                    }
+                                    Application.SBO_Application.MessageBox("Successfully closed.");
+
+                                    // ✅ Reload the model synchronously too
+                                    try
+                                    {
+                                        coretaxModel = TransactionService.GetCoretaxByKey(docEntry).GetAwaiter().GetResult();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Application.SBO_Application.StatusBar.SetText($"Error reload: {ex.Message}",
+                                            SAPbouiCOM.BoMessageTime.bmt_Long, SAPbouiCOM.BoStatusBarMessageType.smt_Error);
+                                        throw;
+                                    }
+                                }).ContinueWith(task => {
+                                    // Refresh UI
+                                    MapModelToUI(oForm);
+                                });
+                            }
+                        }
+
+                        if (pVal.ItemUID == "BtCancel")
+                        {
+                            SAPbouiCOM.Form oForm = Application.SBO_Application.Forms.Item(FormUID);
+                            oForm.Close();
                         }
                     }
+
+                    //if (pVal.ItemUID == "MtFind"
+                    //&& pVal.BeforeAction
+                    //&& pVal.EventType == SAPbouiCOM.BoEventTypes.et_CLICK)
+                    //{
+                    //    if (pVal.ColUID != "Col_10")
+                    //    {
+                    //        BubbleEvent = false; // stop opening editor
+                    //        return;
+                    //    }
+                    //}
+
+                    //if (pVal.ItemUID == "MtDetail"
+                    //&& pVal.BeforeAction
+                    //&& pVal.EventType == SAPbouiCOM.BoEventTypes.et_CLICK)
+                    //{
+                    //    BubbleEvent = false; // stop opening editor
+                    //    return;
+                    //}
 
                     if (pVal.EventType == SAPbouiCOM.BoEventTypes.et_CHOOSE_FROM_LIST && !pVal.BeforeAction)
                     {
@@ -416,6 +560,16 @@ namespace SBOAddonCoreTax
                         var listDocInv = coretaxModel.Detail.Where((g) => g.DocEntry == docEntry && g.NoDocument == docNo).ToList().OrderBy((c)=>c.LineNum);
                         if (listDocInv != null && listDocInv.Any())
                         {
+                            //var invExp = listDocInv.Where((i) => i.Status == "Y").ToList();
+                            //if (invExp != null && invExp.Any())
+                            //{
+
+                            //}
+                            //else
+                            //{
+
+                            //}
+
                             foreach (var itemInv in listDocInv)
                             {
                                 var taxInv = new TaxInvoice
@@ -659,7 +813,7 @@ namespace SBOAddonCoreTax
                 if (_pb != null) { _pb.Stop(); _pb = null; }
             }
         }
-        
+
         private void GetDataComboBox(SAPbouiCOM.Form form, string id, string table)
         {
             SAPbouiCOM.Item comboItem = form.Items.Item(id);
@@ -671,20 +825,108 @@ namespace SBOAddonCoreTax
                 oCombo.ValidValues.Remove(0, SAPbouiCOM.BoSearchKey.psk_Index);
             }
             // Add dropdown values
-            // 3. Load values using DI API Recordset
-            Company oCompany = Services.CompanyService.GetCompany();
-            SAPbobsCOM.Recordset rs = (SAPbobsCOM.Recordset)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset);
-            rs.DoQuery($"SELECT Code, Name FROM {table} ORDER BY Code"); // replace with your query
-
-            while (!rs.EoF)
+            if (table == "OUBR")
             {
-                string code = rs.Fields.Item("Code").Value.ToString();
-                string name = rs.Fields.Item("Name").Value.ToString();
-
-                oCombo.ValidValues.Add(code, name);
-                rs.MoveNext();
+                if (cbBranchValues.Any())
+                {
+                    foreach (var item in cbBranchValues)
+                    {
+                        oCombo.ValidValues.Add(item.Key, item.Value);
+                    }
+                }
+                else
+                {
+                    cbBranchValues = GetDataCbBranch();
+                    foreach (var item in cbBranchValues)
+                    {
+                        oCombo.ValidValues.Add(item.Key, item.Value);
+                    }
+                }
             }
+            if (table == "OOCR")
+            {
+                if (cbOutletValues.Any())
+                {
+                    foreach (var item in cbOutletValues)
+                    {
+                        oCombo.ValidValues.Add(item.Key, item.Value);
+                    }
+                }
+                else
+                {
+                    cbOutletValues = GetDataCbOutlet();
+                    foreach (var item in cbOutletValues)
+                    {
+                        oCombo.ValidValues.Add(item.Key, item.Value);
+                    }
+                }
+                //// 3. Load values using DI API Recordset
+                //Company oCompany = Services.CompanyService.GetCompany();
+                //SAPbobsCOM.Recordset rs = (SAPbobsCOM.Recordset)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset);
+                //rs.DoQuery($"SELECT Code, Name FROM {table} ORDER BY Code"); // replace with your query
 
+                //while (!rs.EoF)
+                //{
+                //    string code = rs.Fields.Item("Code").Value.ToString();
+                //    string name = rs.Fields.Item("Name").Value.ToString();
+
+                //    oCombo.ValidValues.Add(code, name);
+                //    rs.MoveNext();
+                //}
+
+            }
+        }
+
+        private Dictionary<string,string> GetDataCbBranch()
+        {
+            Dictionary<string, string> result = new Dictionary<string, string>();
+            try
+            {
+                Company oCompany = Services.CompanyService.GetCompany();
+                SAPbobsCOM.Recordset rs = (SAPbobsCOM.Recordset)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset);
+                rs.DoQuery($"SELECT Code, Name FROM OUBR ORDER BY Code"); // replace with your query
+
+                while (!rs.EoF)
+                {
+                    string code = rs.Fields.Item("Code").Value.ToString();
+                    string name = rs.Fields.Item("Name").Value.ToString();
+
+                    result.Add(code, name);
+                    rs.MoveNext();
+                }
+                return result;
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+
+        private Dictionary<string, string> GetDataCbOutlet()
+        {
+            Dictionary<string, string> result = new Dictionary<string, string>();
+            try
+            {
+                Company oCompany = Services.CompanyService.GetCompany();
+                SAPbobsCOM.Recordset rs = (SAPbobsCOM.Recordset)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset);
+                rs.DoQuery($"SELECT T0.[OcrCode] AS Code, T0.[OcrName] AS Name FROM OOCR T0 WHERE T0.[DimCode] = '4' "); // replace with your query
+
+                while (!rs.EoF)
+                {
+                    string code = rs.Fields.Item("Code").Value.ToString();
+                    string name = rs.Fields.Item("Name").Value.ToString();
+
+                    result.Add(code, name);
+                    rs.MoveNext();
+                }
+                return result;
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
         }
 
         private void CflHandler(SAPbouiCOM.ItemEvent pVal, string FormUID)
@@ -704,7 +946,7 @@ namespace SBOAddonCoreTax
                         string docEntry = oDataTable.GetValue("DocEntry", 0).ToString();
                         if (coretaxModel.FromDocEntry != int.Parse(docEntry))
                         {
-                            coretaxModel.FromDocNum = int.Parse(docNum);
+                            //coretaxModel.FromDocNum = int.Parse(docNum);
                             coretaxModel.FromDocEntry = int.Parse(docEntry);
 
                             // Get the form object
@@ -712,7 +954,6 @@ namespace SBOAddonCoreTax
 
                             // Set values into your form fields (bound to User Data Sources)
                             oForm.DataSources.UserDataSources.Item("DocFromDS").ValueEx = docNum;
-                            ResetDetail(oForm);
                         }
                     }
                 }
@@ -728,7 +969,7 @@ namespace SBOAddonCoreTax
 
                         if (coretaxModel.ToDocEntry != int.Parse(docEntry))
                         {
-                            coretaxModel.ToDocNum = int.Parse(docNum);
+                            //coretaxModel.ToDocNum = int.Parse(docNum);
                             coretaxModel.ToDocEntry = int.Parse(docEntry);
 
                             // Get the form object
@@ -736,7 +977,6 @@ namespace SBOAddonCoreTax
 
                             // Set values into your form fields (bound to User Data Sources)
                             oForm.DataSources.UserDataSources.Item("DocToDS").ValueEx = docNum;
-                            ResetDetail(oForm);
                         }
                     }
                 }
@@ -752,13 +992,12 @@ namespace SBOAddonCoreTax
                     string code = oDataTable.GetValue("CardCode", 0).ToString();
                     if (code != coretaxModel.FromCust)
                     {
-                        coretaxModel.FromCust = code;
+                        //coretaxModel.FromCust = code;
                         // Get the form object
                         SAPbouiCOM.Form oForm = Application.SBO_Application.Forms.Item(FormUID);
 
                         // Set values into your form fields (bound to User Data Sources)
                         oForm.DataSources.UserDataSources.Item("CustFromDS").ValueEx = code;
-                        ResetDetail(oForm);
                     }
                 }
             }
@@ -772,14 +1011,13 @@ namespace SBOAddonCoreTax
                     string code = oDataTable.GetValue("CardCode", 0).ToString();
                     if (coretaxModel.ToCust != code)
                     {
-                        coretaxModel.ToCust = code;
+                        //coretaxModel.ToCust = code;
 
                         // Get the form object
                         SAPbouiCOM.Form oForm = Application.SBO_Application.Forms.Item(FormUID);
 
                         // Set values into your form fields (bound to User Data Sources)
                         oForm.DataSources.UserDataSources.Item("CustToDS").ValueEx = code;
-                        ResetDetail(oForm);
                     }
                 }
             }
@@ -815,27 +1053,32 @@ namespace SBOAddonCoreTax
                 string outFrom = string.Empty;
                 string outTo = string.Empty;
 
-                if (ItemIsExists(oForm, "CkAllDt") && oForm.Items.Item("CkAllDt").Enabled)
+                if (oForm.Items.Item("CkAllDt").Enabled)
+                //if (ItemIsExists(oForm, "CkAllDt") && oForm.Items.Item("CkAllDt").Enabled)
                 {
                     SAPbouiCOM.CheckBox oCk = (SAPbouiCOM.CheckBox)oForm.Items.Item("CkAllDt").Specific;
                     allDt = oCk.Checked;
                 }
-                if (ItemIsExists(oForm, "CkAllDoc") && oForm.Items.Item("CkAllDoc").Enabled)
+                if (oForm.Items.Item("CkAllDoc").Enabled)
+                //if (ItemIsExists(oForm, "CkAllDoc") && oForm.Items.Item("CkAllDoc").Enabled)
                 {
                     SAPbouiCOM.CheckBox oCk = (SAPbouiCOM.CheckBox)oForm.Items.Item("CkAllDoc").Specific;
                     allDoc = oCk.Checked;
                 }
-                if (ItemIsExists(oForm, "CkAllCust") && oForm.Items.Item("CkAllCust").Enabled)
+                if (oForm.Items.Item("CkAllCust").Enabled)
+                //if (ItemIsExists(oForm, "CkAllCust") && oForm.Items.Item("CkAllCust").Enabled)
                 {
                     SAPbouiCOM.CheckBox oCk = (SAPbouiCOM.CheckBox)oForm.Items.Item("CkAllCust").Specific;
                     allCust = oCk.Checked;
                 }
-                if (ItemIsExists(oForm, "CkAllBr") && oForm.Items.Item("CkAllBr").Enabled)
+                if (oForm.Items.Item("CkAllBr").Enabled)
+                //if (ItemIsExists(oForm, "CkAllBr") && oForm.Items.Item("CkAllBr").Enabled)
                 {
                     SAPbouiCOM.CheckBox oCk = (SAPbouiCOM.CheckBox)oForm.Items.Item("CkAllBr").Specific;
                     allBranch = oCk.Checked;
                 }
-                if (ItemIsExists(oForm, "CkAllOtl") && oForm.Items.Item("CkAllOtl").Enabled)
+                if (oForm.Items.Item("CkAllOtl").Enabled)
+                //if (ItemIsExists(oForm, "CkAllOtl") && oForm.Items.Item("CkAllOtl").Enabled)
                 {
                     SAPbouiCOM.CheckBox oCk = (SAPbouiCOM.CheckBox)oForm.Items.Item("CkAllOtl").Specific;
                     allOutlet = oCk.Checked;
@@ -843,7 +1086,8 @@ namespace SBOAddonCoreTax
 
                 if (!allDt)
                 {
-                    if (ItemIsExists(oForm, "TFromDt") && oForm.Items.Item("TFromDt").Enabled)
+                    if (oForm.Items.Item("TFromDt").Enabled)
+                    //if (ItemIsExists(oForm, "TFromDt") && oForm.Items.Item("TFromDt").Enabled)
                     {
                         SAPbouiCOM.EditText oDtFrom = (SAPbouiCOM.EditText)oForm.Items.Item("TFromDt").Specific;
                         if (DateTime.TryParseExact(oDtFrom.Value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDtFrom))
@@ -851,7 +1095,8 @@ namespace SBOAddonCoreTax
                             dtFrom = parsedDtFrom.ToString("yyyy-MM-dd");
                         }
                     }
-                    if (ItemIsExists(oForm, "TToDt") && oForm.Items.Item("TToDt").Enabled)
+                    if (oForm.Items.Item("TToDt").Enabled)
+                    //if (ItemIsExists(oForm, "TToDt") && oForm.Items.Item("TToDt").Enabled)
                     {
                         SAPbouiCOM.EditText oDtTo = (SAPbouiCOM.EditText)oForm.Items.Item("TToDt").Specific;
                         if (DateTime.TryParseExact(oDtTo.Value, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDtTo))
@@ -862,7 +1107,8 @@ namespace SBOAddonCoreTax
                 }
                 if (!allDoc)
                 {
-                    if (ItemIsExists(oForm, "TFromDoc") && oForm.Items.Item("TFromDoc").Enabled)
+                    if (oForm.Items.Item("TFromDoc").Enabled)
+                    //if (ItemIsExists(oForm, "TFromDoc") && oForm.Items.Item("TFromDoc").Enabled)
                     {
                         docFrom = coretaxModel.FromDocEntry != 0 ? coretaxModel.FromDocEntry.ToString() : string.Empty;
                         //SAPbouiCOM.EditText oDocFrom = (SAPbouiCOM.EditText)oForm.Items.Item("TFromDoc").Specific;
@@ -871,7 +1117,8 @@ namespace SBOAddonCoreTax
                         //    docFrom = oDocFrom.Value.Trim();
                         //}
                     }
-                    if (ItemIsExists(oForm, "TToDoc") && oForm.Items.Item("TToDoc").Enabled)
+                    if (oForm.Items.Item("TToDoc").Enabled)
+                    //if (ItemIsExists(oForm, "TToDoc") && oForm.Items.Item("TToDoc").Enabled)
                     {
                         docTo = coretaxModel.ToDocEntry != 0 ? coretaxModel.ToDocEntry.ToString() : string.Empty;
                         //SAPbouiCOM.EditText oDocTo = (SAPbouiCOM.EditText)oForm.Items.Item("TToDoc").Specific;
@@ -883,7 +1130,8 @@ namespace SBOAddonCoreTax
                 }
                 if (!allCust)
                 {
-                    if (ItemIsExists(oForm, "TCustFrom") && oForm.Items.Item("TCustFrom").Enabled)
+                    if (oForm.Items.Item("TCustFrom").Enabled)
+                    //if (ItemIsExists(oForm, "TCustFrom") && oForm.Items.Item("TCustFrom").Enabled)
                     {
                         SAPbouiCOM.EditText oCustFrom = (SAPbouiCOM.EditText)oForm.Items.Item("TCustFrom").Specific;
                         if (!string.IsNullOrEmpty(oCustFrom.Value.Trim()))
@@ -891,7 +1139,8 @@ namespace SBOAddonCoreTax
                             custFrom = oCustFrom.Value.Trim();
                         }
                     }
-                    if (ItemIsExists(oForm, "TCustTo") && oForm.Items.Item("TCustTo").Enabled)
+                    if (oForm.Items.Item("TCustTo").Enabled)
+                    //if (ItemIsExists(oForm, "TCustTo") && oForm.Items.Item("TCustTo").Enabled)
                     {
                         SAPbouiCOM.EditText oCustTo = (SAPbouiCOM.EditText)oForm.Items.Item("TCustTo").Specific;
                         if (!string.IsNullOrEmpty(oCustTo.Value.Trim()))
@@ -902,7 +1151,8 @@ namespace SBOAddonCoreTax
                 }
                 if (!allBranch)
                 {
-                    if (ItemIsExists(oForm, "CbBrFrom") && oForm.Items.Item("CbBrFrom").Enabled)
+                    if (oForm.Items.Item("CbBrFrom").Enabled)
+                    //if (ItemIsExists(oForm, "CbBrFrom") && oForm.Items.Item("CbBrFrom").Enabled)
                     {
                         SAPbouiCOM.ComboBox oBrFrom = (SAPbouiCOM.ComboBox)oForm.Items.Item("CbBrFrom").Specific;
                         if (!string.IsNullOrEmpty(oBrFrom.Value.Trim()))
@@ -910,7 +1160,8 @@ namespace SBOAddonCoreTax
                             branchFrom = oBrFrom.Value.Trim();
                         }
                     }
-                    if (ItemIsExists(oForm, "CbBrTo") && oForm.Items.Item("CbBrTo").Enabled)
+                    if (oForm.Items.Item("CbBrTo").Enabled)
+                    //if (ItemIsExists(oForm, "CbBrTo") && oForm.Items.Item("CbBrTo").Enabled)
                     {
                         SAPbouiCOM.ComboBox oBrTo = (SAPbouiCOM.ComboBox)oForm.Items.Item("CbBrTo").Specific;
                         if (!string.IsNullOrEmpty(oBrTo.Value.Trim()))
@@ -921,7 +1172,8 @@ namespace SBOAddonCoreTax
                 }
                 if (!allOutlet)
                 {
-                    if (ItemIsExists(oForm, "CbOtlFrom") && oForm.Items.Item("CbOtlFrom").Enabled)
+                    if (oForm.Items.Item("CbOtlFrom").Enabled)
+                    //if (ItemIsExists(oForm, "CbOtlFrom") && oForm.Items.Item("CbOtlFrom").Enabled)
                     {
                         SAPbouiCOM.ComboBox oOtlFrom = (SAPbouiCOM.ComboBox)oForm.Items.Item("CbOtlFrom").Specific;
                         if (!string.IsNullOrEmpty(oOtlFrom.Value.Trim()))
@@ -929,7 +1181,8 @@ namespace SBOAddonCoreTax
                             outFrom = oOtlFrom.Value.Trim();
                         }
                     }
-                    if (ItemIsExists(oForm, "CbOtlTo") && oForm.Items.Item("CbOtlTo").Enabled)
+                    if (oForm.Items.Item("CbOtlTo").Enabled)
+                    //if (ItemIsExists(oForm, "CbOtlTo") && oForm.Items.Item("CbOtlTo").Enabled)
                     {
                         SAPbouiCOM.ComboBox oOtlTo = (SAPbouiCOM.ComboBox)oForm.Items.Item("CbOtlTo").Specific;
                         if (!string.IsNullOrEmpty(oOtlTo.Value.Trim()))
@@ -1046,6 +1299,11 @@ namespace SBOAddonCoreTax
                 // Load data into matrix
                 oMatrix.LoadFromDataSource();
                 oMatrix.SelectionMode = SAPbouiCOM.BoMatrixSelect.ms_Auto;
+                int white = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.White);
+                for (int i = 0; i < oMatrix.RowCount; i++)
+                {
+                    oMatrix.CommonSetting.SetRowBackColor(i + 1, white);
+                }
                 oMatrix.AutoResizeColumns();
             }
             catch (Exception e)
@@ -1175,17 +1433,6 @@ namespace SBOAddonCoreTax
                 {
                     coretaxModel.Detail = await TransactionService.GetDataGenerate(filteredHeader);
                     SetMtGenerateByModel(oForm);
-                        
-                    if (coretaxModel.Detail.Any())
-                    {
-                        oForm.Items.Item("BtCSV").Enabled = true;
-                        oForm.Items.Item("BtXML").Enabled = true;
-                    }
-                    else
-                    {
-                        oForm.Items.Item("BtCSV").Enabled = false;
-                        oForm.Items.Item("BtXML").Enabled = false;
-                    }
                 }
             }
             catch (Exception e)
@@ -1201,94 +1448,211 @@ namespace SBOAddonCoreTax
             });
         }
 
-        private void ShowFilterGroup(SAPbouiCOM.Form oForm)
+        private void SetBtnExport(SAPbouiCOM.Form oForm)
         {
-            oForm.ActiveItem = "TDocNum";
-            if (FilterIsShow)
+            if (coretaxModel.Detail.Any() && coretaxModel.DocEntry != null && coretaxModel.DocEntry != 0)
             {
-                var countDoc = SelectedCkBox.Where((d) => d.Value).Count();
-                if (!oForm.Items.Item("TFromDt").Enabled) oForm.Items.Item("TFromDt").Enabled = true;
-                if (!oForm.Items.Item("TToDt").Enabled) oForm.Items.Item("TToDt").Enabled = true;
-                if (!oForm.Items.Item("CkAllDt").Enabled) oForm.Items.Item("CkAllDt").Enabled = true;
-
-                if (countDoc == 1)
-                {
-                    var table = SelectedCkBox.Where((d) => d.Value).First().Key;
-                    if (!oForm.Items.Item("TFromDoc").Enabled) oForm.Items.Item("TFromDoc").Enabled = true;
-                    if (!oForm.Items.Item("TToDoc").Enabled) oForm.Items.Item("TToDoc").Enabled = true;
-                    if (!oForm.Items.Item("CkAllDoc").Enabled) oForm.Items.Item("CkAllDoc").Enabled = true;
-                    SetDocumentCfl(oForm, "CflDocFrom"+table, "DocFromDS", "TFromDoc");
-                    SetDocumentCfl(oForm, "CflDocTo"+table, "DocToDS", "TToDoc");
-                }
-                else
-                {
-                    if (oForm.Items.Item("TFromDoc").Enabled) oForm.Items.Item("TFromDoc").Enabled = false;
-                    if (oForm.Items.Item("TToDoc").Enabled) oForm.Items.Item("TToDoc").Enabled = false;
-                    if (oForm.Items.Item("CkAllDoc").Enabled) oForm.Items.Item("CkAllDoc").Enabled = false;
-                }
-
-                if (!oForm.Items.Item("TCustFrom").Enabled) oForm.Items.Item("TCustFrom").Enabled = true;
-                if (!oForm.Items.Item("TCustTo").Enabled) oForm.Items.Item("TCustTo").Enabled = true;
-                if (!oForm.Items.Item("CkAllCust").Enabled) oForm.Items.Item("CkAllCust").Enabled = true;
-                if (!oForm.Items.Item("CbBrFrom").Enabled) oForm.Items.Item("CbBrFrom").Enabled = true;
-                if (!oForm.Items.Item("CbBrTo").Enabled) oForm.Items.Item("CbBrTo").Enabled = true;
-                if (!oForm.Items.Item("CkAllBr").Enabled) oForm.Items.Item("CkAllBr").Enabled = true;
-                if (!oForm.Items.Item("CbOtlFrom").Enabled) oForm.Items.Item("CbOtlFrom").Enabled = true;
-                if (!oForm.Items.Item("CbOtlTo").Enabled) oForm.Items.Item("CbOtlTo").Enabled = true;
-                if (!oForm.Items.Item("CkAllOtl").Enabled) oForm.Items.Item("CkAllOtl").Enabled = true;
-                
-                SetCustomerCfl(oForm, "CflCustFrom", "CustFromDS", "TCustFrom");
-                SetCustomerCfl(oForm, "CflCustTo", "CustToDS", "TCustTo");
-
-                GetDataComboBox(oForm, "CbBrFrom", "OUBR");
-                GetDataComboBox(oForm, "CbBrTo", "OUBR");
-
-                GetDataComboBox(oForm, "CbOtlFrom", "OUDP");
-                GetDataComboBox(oForm, "CbOtlTo", "OUDP");
-
-                oForm.Items.Item("BtFind").Enabled = true;
+                oForm.Items.Item("BtCSV").Enabled = true;
+                oForm.Items.Item("BtXML").Enabled = true;
             }
             else
             {
-                if (oForm.Items.Item("TFromDt").Enabled) oForm.Items.Item("TFromDt").Enabled = false;
-                if (oForm.Items.Item("TToDt").Enabled) oForm.Items.Item("TToDt").Enabled = false;
-                if (oForm.Items.Item("CkAllDt").Enabled) oForm.Items.Item("CkAllDt").Enabled = false;
-                if (oForm.Items.Item("TFromDoc").Enabled) oForm.Items.Item("TFromDoc").Enabled = false;
-                if (oForm.Items.Item("TToDoc").Enabled) oForm.Items.Item("TToDoc").Enabled = false;
-                if (oForm.Items.Item("CkAllDoc").Enabled) oForm.Items.Item("CkAllDoc").Enabled = false;
-                if (oForm.Items.Item("TCustFrom").Enabled) oForm.Items.Item("TCustFrom").Enabled = false;
-                if (oForm.Items.Item("TCustTo").Enabled) oForm.Items.Item("TCustTo").Enabled = false;
-                if (oForm.Items.Item("CkAllCust").Enabled) oForm.Items.Item("CkAllCust").Enabled = false;
-                if (oForm.Items.Item("CbBrFrom").Enabled) oForm.Items.Item("CbBrFrom").Enabled = false;
-                if (oForm.Items.Item("CbBrTo").Enabled) oForm.Items.Item("CbBrTo").Enabled = false; 
-                if (oForm.Items.Item("CkAllBr").Enabled) oForm.Items.Item("CkAllBr").Enabled = false;
-                if (oForm.Items.Item("CbOtlFrom").Enabled) oForm.Items.Item("CbOtlFrom").Enabled = false;
-                if (oForm.Items.Item("CbOtlTo").Enabled) oForm.Items.Item("CbOtlTo").Enabled = false;
-                if (oForm.Items.Item("CkAllOtl").Enabled) oForm.Items.Item("CkAllOtl").Enabled = false;
-                
-                oForm.Items.Item("BtFind").Enabled = false;
+                oForm.Items.Item("BtCSV").Enabled = false;
+                oForm.Items.Item("BtXML").Enabled = false;
             }
-            ClearEdit(oForm, "TFromDt");
-            ClearEdit(oForm, "TToDt");
-            ClearCheckBox(oForm, "CkAllDt", "CkDtDS");
-            ClearEdit(oForm, "TFromDoc");
-            ClearEdit(oForm, "TToDoc");
-            ClearCheckBox(oForm, "CkAllDoc", "CkDocDS");
-            ClearEdit(oForm, "TCustFrom");
-            ClearEdit(oForm, "TCustTo");
-            ClearCheckBox(oForm, "CkAllCust", "CkCustDS");
-            ClearCombo(oForm, "CbBrFrom");
-            ClearCombo(oForm, "CbBrTo");
-            ClearCheckBox(oForm, "CkAllBr", "CkBrDS");
-            ClearCombo(oForm, "CbOtlFrom");
-            ClearCombo(oForm, "CbOtlTo");
-            ClearCheckBox(oForm, "CkAllOtl", "CkOtlDS");
-            ResetDetail(oForm);
         }
+
+        private void RemoveFocus(SAPbouiCOM.Form oForm)
+        {
+            if (!ItemIsExists(oForm, "dummy"))
+            {
+                var dummyItem = oForm.Items.Add("dummy", SAPbouiCOM.BoFormItemTypes.it_EDIT);
+                dummyItem.Left = 5;
+                dummyItem.Top = 5;
+                dummyItem.Width = 1;
+                dummyItem.Height = 1;
+                ((SAPbouiCOM.EditText)dummyItem.Specific).Value = "";
+            }
+
+            // Force focus to dummy edit field
+            oForm.Items.Item("dummy").Click(SAPbouiCOM.BoCellClickType.ct_Regular);
+            oForm.ActiveItem = "dummy";
+        }
+
+        private void ShowFilterGroup(SAPbouiCOM.Form oForm)
+        {
+            RemoveFocus(oForm);
+            try
+            {
+                string[] dateItems = { "TFromDt", "TToDt", "CkAllDt" };
+                string[] docItems = { "TFromDoc", "TToDoc", "CkAllDoc" };
+                string[] custItems = { "TCustFrom", "TCustTo", "CkAllCust" };
+                string[] brItems = { "CbBrFrom", "CbBrTo", "CkAllBr" };
+                string[] otlItems = { "CbOtlFrom", "CbOtlTo", "CkAllOtl" };
+
+                if (FilterIsShow)
+                {
+                    int countDoc = SelectedCkBox.Count(d => d.Value);
+
+                    // Always enable date filter
+                    SetEnabled(oForm, dateItems, true);
+
+                    // Enable doc filter only if exactly 1 doc type selected
+                    SetEnabled(oForm, docItems, countDoc == 1);
+
+                    if (countDoc == 1)
+                    {
+                        var table = SelectedCkBox.First(d => d.Value).Key;
+                        SetDocumentCfl(oForm, "CflDocFrom" + table, "DocFromDS", "TFromDoc");
+                        SetDocumentCfl(oForm, "CflDocTo" + table, "DocToDS", "TToDoc");
+                    }
+
+                    // Always enable customer, branch, outlet filters
+                    SetEnabled(oForm, custItems, true);
+                    SetEnabled(oForm, brItems, true);
+                    SetEnabled(oForm, otlItems, true);
+
+                    // Set CFLs
+                    SetCustomerCfl(oForm, "CflCustFrom", "CustFromDS", "TCustFrom");
+                    SetCustomerCfl(oForm, "CflCustTo", "CustToDS", "TCustTo");
+
+                    // Fill combos
+                    GetDataComboBox(oForm, "CbBrFrom", "OUBR");
+                    GetDataComboBox(oForm, "CbBrTo", "OUBR");
+                    GetDataComboBox(oForm, "CbOtlFrom", "OOCR");
+                    GetDataComboBox(oForm, "CbOtlTo", "OOCR");
+
+                    oForm.Items.Item("BtFind").Enabled = true;
+                }
+                else
+                {
+                    // Hide/disable everything if FilterIsShow = false
+                    SetEnabled(oForm, dateItems, false);
+                    SetEnabled(oForm, docItems, false);
+                    SetEnabled(oForm, custItems, false);
+                    SetEnabled(oForm, brItems, false);
+                    SetEnabled(oForm, otlItems, false);
+
+                    ClearCombo(oForm, "CbBrFrom");
+                    ClearCombo(oForm, "CbBrTo");
+                    ClearCheckBox(oForm, "CkAllBr", "CkBrDS");
+
+                    ClearCombo(oForm, "CbOtlFrom");
+                    ClearCombo(oForm, "CbOtlTo");
+                    ClearCheckBox(oForm, "CkAllOtl", "CkOtlDS");
+
+                    oForm.Items.Item("BtFind").Enabled = false;
+                }
+
+                // Always clear filter fields
+                ClearEdit(oForm, "TFromDt");
+                ClearEdit(oForm, "TToDt");
+                ClearCheckBox(oForm, "CkAllDt", "CkDtDS");
+
+                ClearEdit(oForm, "TFromDoc");
+                ClearEdit(oForm, "TToDoc");
+                ClearCheckBox(oForm, "CkAllDoc", "CkDocDS");
+
+                ClearEdit(oForm, "TCustFrom");
+                ClearEdit(oForm, "TCustTo");
+                ClearCheckBox(oForm, "CkAllCust", "CkCustDS");
+
+                ResetDetail(oForm);
+            }
+            finally
+            {
+                RemoveFocus(oForm);
+            }
+        }
+
+        //private void ShowFilterGroup(SAPbouiCOM.Form oForm)
+        //{
+        //    RemoveFocus(oForm);
+        //    if (FilterIsShow)
+        //    {
+        //        var countDoc = SelectedCkBox.Where((d) => d.Value).Count();
+        //        if (!oForm.Items.Item("TFromDt").Enabled) oForm.Items.Item("TFromDt").Enabled = true;
+        //        if (!oForm.Items.Item("TToDt").Enabled) oForm.Items.Item("TToDt").Enabled = true;
+        //        if (!oForm.Items.Item("CkAllDt").Enabled) oForm.Items.Item("CkAllDt").Enabled = true;
+
+        //        if (countDoc == 1)
+        //        {
+        //            var table = SelectedCkBox.Where((d) => d.Value).First().Key;
+        //            if (!oForm.Items.Item("TFromDoc").Enabled) oForm.Items.Item("TFromDoc").Enabled = true;
+        //            if (!oForm.Items.Item("TToDoc").Enabled) oForm.Items.Item("TToDoc").Enabled = true;
+        //            if (!oForm.Items.Item("CkAllDoc").Enabled) oForm.Items.Item("CkAllDoc").Enabled = true;
+        //            SetDocumentCfl(oForm, "CflDocFrom"+table, "DocFromDS", "TFromDoc");
+        //            SetDocumentCfl(oForm, "CflDocTo"+table, "DocToDS", "TToDoc");
+        //        }
+        //        else
+        //        {
+        //            if (oForm.Items.Item("TFromDoc").Enabled) oForm.Items.Item("TFromDoc").Enabled = false;
+        //            if (oForm.Items.Item("TToDoc").Enabled) oForm.Items.Item("TToDoc").Enabled = false;
+        //            if (oForm.Items.Item("CkAllDoc").Enabled) oForm.Items.Item("CkAllDoc").Enabled = false;
+        //        }
+
+        //        if (!oForm.Items.Item("TCustFrom").Enabled) oForm.Items.Item("TCustFrom").Enabled = true;
+        //        if (!oForm.Items.Item("TCustTo").Enabled) oForm.Items.Item("TCustTo").Enabled = true;
+        //        if (!oForm.Items.Item("CkAllCust").Enabled) oForm.Items.Item("CkAllCust").Enabled = true;
+        //        if (!oForm.Items.Item("CbBrFrom").Enabled) oForm.Items.Item("CbBrFrom").Enabled = true;
+        //        if (!oForm.Items.Item("CbBrTo").Enabled) oForm.Items.Item("CbBrTo").Enabled = true;
+        //        if (!oForm.Items.Item("CkAllBr").Enabled) oForm.Items.Item("CkAllBr").Enabled = true;
+        //        if (!oForm.Items.Item("CbOtlFrom").Enabled) oForm.Items.Item("CbOtlFrom").Enabled = true;
+        //        if (!oForm.Items.Item("CbOtlTo").Enabled) oForm.Items.Item("CbOtlTo").Enabled = true;
+        //        if (!oForm.Items.Item("CkAllOtl").Enabled) oForm.Items.Item("CkAllOtl").Enabled = true;
+
+        //        SetCustomerCfl(oForm, "CflCustFrom", "CustFromDS", "TCustFrom");
+        //        SetCustomerCfl(oForm, "CflCustTo", "CustToDS", "TCustTo");
+
+        //        GetDataComboBox(oForm, "CbBrFrom", "OUBR");
+        //        GetDataComboBox(oForm, "CbBrTo", "OUBR");
+
+        //        GetDataComboBox(oForm, "CbOtlFrom", "OUDP");
+        //        GetDataComboBox(oForm, "CbOtlTo", "OUDP");
+
+        //        oForm.Items.Item("BtFind").Enabled = true;
+        //    }
+        //    else
+        //    {
+        //        if (oForm.Items.Item("TFromDt").Enabled) oForm.Items.Item("TFromDt").Enabled = false;
+        //        if (oForm.Items.Item("TToDt").Enabled) oForm.Items.Item("TToDt").Enabled = false;
+        //        if (oForm.Items.Item("CkAllDt").Enabled) oForm.Items.Item("CkAllDt").Enabled = false;
+        //        if (oForm.Items.Item("TFromDoc").Enabled) oForm.Items.Item("TFromDoc").Enabled = false;
+        //        if (oForm.Items.Item("TToDoc").Enabled) oForm.Items.Item("TToDoc").Enabled = false;
+        //        if (oForm.Items.Item("CkAllDoc").Enabled) oForm.Items.Item("CkAllDoc").Enabled = false;
+        //        if (oForm.Items.Item("TCustFrom").Enabled) oForm.Items.Item("TCustFrom").Enabled = false;
+        //        if (oForm.Items.Item("TCustTo").Enabled) oForm.Items.Item("TCustTo").Enabled = false;
+        //        if (oForm.Items.Item("CkAllCust").Enabled) oForm.Items.Item("CkAllCust").Enabled = false;
+        //        if (oForm.Items.Item("CbBrFrom").Enabled) oForm.Items.Item("CbBrFrom").Enabled = false;
+        //        if (oForm.Items.Item("CbBrTo").Enabled) oForm.Items.Item("CbBrTo").Enabled = false; 
+        //        if (oForm.Items.Item("CkAllBr").Enabled) oForm.Items.Item("CkAllBr").Enabled = false;
+        //        if (oForm.Items.Item("CbOtlFrom").Enabled) oForm.Items.Item("CbOtlFrom").Enabled = false;
+        //        if (oForm.Items.Item("CbOtlTo").Enabled) oForm.Items.Item("CbOtlTo").Enabled = false;
+        //        if (oForm.Items.Item("CkAllOtl").Enabled) oForm.Items.Item("CkAllOtl").Enabled = false;
+
+        //        oForm.Items.Item("BtFind").Enabled = false;
+        //    }
+        //    ClearEdit(oForm, "TFromDt");
+        //    ClearEdit(oForm, "TToDt");
+        //    ClearCheckBox(oForm, "CkAllDt", "CkDtDS");
+        //    ClearEdit(oForm, "TFromDoc");
+        //    ClearEdit(oForm, "TToDoc");
+        //    ClearCheckBox(oForm, "CkAllDoc", "CkDocDS");
+        //    ClearEdit(oForm, "TCustFrom");
+        //    ClearEdit(oForm, "TCustTo");
+        //    ClearCheckBox(oForm, "CkAllCust", "CkCustDS");
+        //    ClearCombo(oForm, "CbBrFrom");
+        //    ClearCombo(oForm, "CbBrTo");
+        //    ClearCheckBox(oForm, "CkAllBr", "CkBrDS");
+        //    ClearCombo(oForm, "CbOtlFrom");
+        //    ClearCombo(oForm, "CbOtlTo");
+        //    ClearCheckBox(oForm, "CkAllOtl", "CkOtlDS");
+        //    ResetDetail(oForm);
+        //}
 
         private void ClearCombo(SAPbouiCOM.Form form, string id)
         {
-            if (!ItemIsExists(form, id)) return;
+            //if (!ItemIsExists(form, id)) return;
             SAPbouiCOM.Item comboItem = form.Items.Item(id);
             SAPbouiCOM.ComboBox oCombo = (SAPbouiCOM.ComboBox)comboItem.Specific;
 
@@ -1302,21 +1666,21 @@ namespace SBOAddonCoreTax
 
         private void ClearEdit(SAPbouiCOM.Form oForm, string id)
         {
-            if (!ItemIsExists(oForm, id)) return;
+            //if (!ItemIsExists(oForm, id)) return;
             SAPbouiCOM.EditText edit = (SAPbouiCOM.EditText)oForm.Items.Item(id).Specific;
             edit.Value = "";
         }
 
         private void ClearEditDate(SAPbouiCOM.Form oForm, string id, string ds)
         {
-            if (!ItemIsExists(oForm, id)) return;
+            //if (!ItemIsExists(oForm, id)) return;
             ClearEdit(oForm, id);
             oForm.DataSources.UserDataSources.Item(ds).Value = "00000000"; // -> tampil 30.12.1899
         }
 
         private void ClearCheckBox(SAPbouiCOM.Form oForm, string id, string ds)
         {
-            if (!ItemIsExists(oForm, id)) return;
+            //if (!ItemIsExists(oForm, id)) return;
             SAPbouiCOM.CheckBox ck = (SAPbouiCOM.CheckBox)oForm.Items.Item(id).Specific;
             ck.Checked = false;
             oForm.DataSources.UserDataSources.Item(ds).Value = "N";
@@ -1324,14 +1688,19 @@ namespace SBOAddonCoreTax
 
         private void SetBoldUnderlinedLabel(SAPbouiCOM.Form oForm, string id)
         {
-            if (ItemIsExists(oForm, id))
-            {
-                // Get StaticText item
-                SAPbouiCOM.StaticText label = (SAPbouiCOM.StaticText)oForm.Items.Item(id).Specific;
+            // Get StaticText item
+            SAPbouiCOM.StaticText label = (SAPbouiCOM.StaticText)oForm.Items.Item(id).Specific;
 
-                // Bold Underline
-                label.Item.TextStyle = (int)(SAPbouiCOM.BoFontStyle.fs_Bold | SAPbouiCOM.BoFontStyle.fs_Underline);
-            }
+            // Bold Underline
+            label.Item.TextStyle = (int)(SAPbouiCOM.BoFontStyle.fs_Bold | SAPbouiCOM.BoFontStyle.fs_Underline);
+            //if (ItemIsExists(oForm, id))
+            //{
+            //    // Get StaticText item
+            //    SAPbouiCOM.StaticText label = (SAPbouiCOM.StaticText)oForm.Items.Item(id).Specific;
+
+            //    // Bold Underline
+            //    label.Item.TextStyle = (int)(SAPbouiCOM.BoFontStyle.fs_Bold | SAPbouiCOM.BoFontStyle.fs_Underline);
+            //}
         }
 
         private void ClearGrid(SAPbouiCOM.Form oForm, string gridItemUID, string dataTableUID)
@@ -1367,7 +1736,7 @@ namespace SBOAddonCoreTax
         {
             try
             {
-                if (!ItemIsExists(oForm, mtUID)) return;
+                //if (!ItemIsExists(oForm, mtUID)) return;
                 oForm.Freeze(true);
                 SAPbouiCOM.Matrix oMtx = (SAPbouiCOM.Matrix)oForm.Items.Item(mtUID).Specific;
                 if (oMtx.RowCount <= 0) return;
@@ -1452,14 +1821,18 @@ namespace SBOAddonCoreTax
                 oForm.DataSources.UserDataSources.Add(ds, SAPbouiCOM.BoDataType.dt_SHORT_TEXT, 20);
             }
 
-            // ✅ Check if the item exists before binding
-            if (ItemIsExists(oForm, txtId))
-            {
-                var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(txtId).Specific;
-                oEdit.DataBind.SetBound(true, "", ds);
-                oEdit.ChooseFromListUID = id;      // ✅ use your parameter `id` instead of hardcoded "2"
-                oEdit.ChooseFromListAlias = "CardCode";
-            }
+            var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(txtId).Specific;
+            oEdit.DataBind.SetBound(true, "", ds);
+            oEdit.ChooseFromListUID = id;      // ✅ use your parameter `id` instead of hardcoded "2"
+            oEdit.ChooseFromListAlias = "CardCode";
+            //// ✅ Check if the item exists before binding
+            //if (ItemIsExists(oForm, txtId))
+            //{
+            //    var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(txtId).Specific;
+            //    oEdit.DataBind.SetBound(true, "", ds);
+            //    oEdit.ChooseFromListUID = id;      // ✅ use your parameter `id` instead of hardcoded "2"
+            //    oEdit.ChooseFromListAlias = "CardCode";
+            //}
         }
 
         private void SetDocumentCfl(SAPbouiCOM.Form oForm, string id, string ds, string txtId)
@@ -1512,14 +1885,18 @@ namespace SBOAddonCoreTax
                     oForm.DataSources.UserDataSources.Add(ds, SAPbouiCOM.BoDataType.dt_SHORT_TEXT, 20);
                 }
 
-                // ✅ Check if the item exists before binding
-                if (ItemIsExists(oForm, txtId))
-                {
-                    var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(txtId).Specific;
-                    oEdit.DataBind.SetBound(true, "", ds);
-                    oEdit.ChooseFromListUID = id;      // ✅ use your parameter `id` instead of hardcoded "2"
-                                                       //oEdit.ChooseFromListAlias = "CardCode";
-                }
+                var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(txtId).Specific;
+                oEdit.DataBind.SetBound(true, "", ds);
+                oEdit.ChooseFromListUID = id;    
+
+                //// ✅ Check if the item exists before binding
+                //if (ItemIsExists(oForm, txtId))
+                //{
+                //    var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(txtId).Specific;
+                //    oEdit.DataBind.SetBound(true, "", ds);
+                //    oEdit.ChooseFromListUID = id;      // ✅ use your parameter `id` instead of hardcoded "2"
+                //                                       //oEdit.ChooseFromListAlias = "CardCode";
+                //}
             }
             catch (Exception)
             {
@@ -1563,14 +1940,18 @@ namespace SBOAddonCoreTax
                 oForm.DataSources.UserDataSources.Add(ds, SAPbouiCOM.BoDataType.dt_SHORT_TEXT, 20);
             }
 
-            // ✅ Bind EditText to DataSource and CFL
-            if (ItemIsExists(oForm, txtId))
-            {
-                var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(txtId).Specific;
-                oEdit.DataBind.SetBound(true, "", ds);
-                oEdit.ChooseFromListUID = id;
-                //oEdit.ChooseFromListAlias = "Code"; // or "BPLName" if you want the name
-            }
+            var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(txtId).Specific;
+            oEdit.DataBind.SetBound(true, "", ds);
+            oEdit.ChooseFromListUID = id;
+
+            //// ✅ Bind EditText to DataSource and CFL
+            //if (ItemIsExists(oForm, txtId))
+            //{
+            //    var oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(txtId).Specific;
+            //    oEdit.DataBind.SetBound(true, "", ds);
+            //    oEdit.ChooseFromListUID = id;
+            //    //oEdit.ChooseFromListAlias = "Code"; // or "BPLName" if you want the name
+            //}
         }
 
         private bool ItemIsExists(SAPbouiCOM.Form oForm, string itemUid)
@@ -1753,58 +2134,20 @@ namespace SBOAddonCoreTax
                 }
                 SetMtGenerate(oForm);
                 // Change button caption to Update after first save
-                var btn = (SAPbouiCOM.Button)oForm.Items.Item("BtSave").Specific;
-                if (coretaxModel.DocEntry != null && coretaxModel.DocEntry != 0)
+                var btnUpdate = (SAPbouiCOM.Button)oForm.Items.Item("BtSave").Specific;
+                if (coretaxModel.Status == "O" && coretaxModel.DocEntry != null && coretaxModel.DocEntry != 0)
                 {
-                    btn.Caption = "Update";
+                    btnUpdate.Caption = "Update";
                     //oForm.Mode = SAPbouiCOM.BoFormMode.fm_UPDATE_MODE;
 
                 }
                 else
                 {
-                    btn.Caption = "Add";
+                    btnUpdate.Caption = "Add";
                     //oForm.Mode = SAPbouiCOM.BoFormMode.fm_ADD_MODE;
                 }
-                if (coretaxModel.Status == "O" && coretaxModel.DocEntry != null && coretaxModel.DocEntry != 0)
-                {
-                    int selectedCount = new[]
-                    {
-                        coretaxModel.IsARInvoice,
-                        coretaxModel.IsARDownPayment,
-                        coretaxModel.IsARCreditMemo
-                    }.Count(b => b);
-                    if (selectedCount == 1)
-                    {
-                        oForm.Items.Item("TFromDoc").Enabled = true;
-                        oForm.Items.Item("TToDoc").Enabled = true;
-                        oForm.Items.Item("CkAllDoc").Enabled = true;
-                    }
-                    oForm.Items.Item("TFromDt").Enabled = true;
-                    oForm.Items.Item("TToDt").Enabled = true;
-                    oForm.Items.Item("CkAllDt").Enabled = true;
-
-                    oForm.Items.Item("TCustFrom").Enabled = true;
-                    oForm.Items.Item("TCustTo").Enabled = true;
-                    oForm.Items.Item("CkAllCust").Enabled = true;
-
-                    oForm.Items.Item("CbBrFrom").Enabled = true;
-                    oForm.Items.Item("CbBrTo").Enabled = true;
-                    oForm.Items.Item("CkAllBr").Enabled = true;
-
-                    oForm.Items.Item("CbOtlFrom").Enabled = true;
-                    oForm.Items.Item("CbOtlTo").Enabled = true;
-                    oForm.Items.Item("CkAllOtl").Enabled = true;
-                    oForm.Items.Item("BtFind").Enabled = true;
-
-                    oForm.Items.Item("BtGen").Enabled = (FindListModel != null && FindListModel.Any((f) => f.Selected));
-                    oForm.Items.Item("BtSave").Enabled = true;
-                }
-                else
-                {
-                    oForm.Items.Item("BtFind").Enabled = false;
-                    oForm.Items.Item("BtGen").Enabled = false;
-                    oForm.Items.Item("BtSave").Enabled = false;
-                }
+                UpdateFormItemStates(oForm, coretaxModel, FindListModel);
+                SetBtnExport(oForm);
             }
             catch (Exception e)
             {
@@ -1818,15 +2161,97 @@ namespace SBOAddonCoreTax
             }
         }
 
+        private void UpdateFormItemStates(SAPbouiCOM.Form oForm, CoretaxModel coretaxModel, List<FilterDataModel> FindListModel)
+        {
+            // Common item groups
+            string[] docItems = { "TFromDoc", "TToDoc", "CkAllDoc" };
+            string[] dtItems = { "TFromDt", "TToDt", "CkAllDt" };
+            string[] custItems = { "TCustFrom", "TCustTo", "CkAllCust" };
+            string[] brItems = { "CbBrFrom", "CbBrTo", "CkAllBr" };
+            string[] otlItems = { "CbOtlFrom", "CbOtlTo", "CkAllOtl" };
+            string[] actionButtons = { "BtFind", "BtGen", "BtSave", "BtClose" };
+            string[] chkItems = { "CkInv", "CkDp", "CkCM" };
+
+            bool isOpen = (coretaxModel.Status == "O");
+            bool hasDocEntry = (coretaxModel.DocEntry ?? 0) != 0;
+
+            if (isOpen)
+            {
+                // Always enable invoice type checkboxes
+                SetEnabled(oForm, chkItems, true);
+
+                if (hasDocEntry)
+                {
+                    int selectedCount = new[]
+                    {
+                coretaxModel.IsARInvoice,
+                coretaxModel.IsARDownPayment,
+                coretaxModel.IsARCreditMemo
+            }.Count(b => b);
+
+                    // Doc filters only enabled if exactly 1 type selected
+                    SetEnabled(oForm, docItems, selectedCount == 1);
+
+                    // Always enable other filters + action buttons
+                    SetEnabled(oForm, dtItems, true);
+                    SetEnabled(oForm, custItems, true);
+                    SetEnabled(oForm, brItems, true);
+                    SetEnabled(oForm, otlItems, true);
+
+                    SetEnabled(oForm, actionButtons, true);
+
+                    // BtGen depends on selected FindList
+                    oForm.Items.Item("BtGen").Enabled = (FindListModel != null && FindListModel.Any(f => f.Selected));
+                }
+                else
+                {
+                    // No DocEntry yet → disable all except checkboxes
+                    SetEnabled(oForm, docItems, false);
+                    SetEnabled(oForm, dtItems, false);
+                    SetEnabled(oForm, custItems, false);
+                    SetEnabled(oForm, brItems, false);
+                    SetEnabled(oForm, otlItems, false);
+                    SetEnabled(oForm, actionButtons, false);
+                }
+            }
+            else
+            {
+                // Status != "O" → disable everything
+                SetEnabled(oForm, chkItems, false);
+                SetEnabled(oForm, docItems, false);
+                SetEnabled(oForm, dtItems, false);
+                SetEnabled(oForm, custItems, false);
+                SetEnabled(oForm, brItems, false);
+                SetEnabled(oForm, otlItems, false);
+                SetEnabled(oForm, actionButtons, false);
+                SetEnabled(oForm, chkItems, false);
+            }
+        }
+
+        private void SetEnabled(SAPbouiCOM.Form oForm, string[] itemIds, bool enabled)
+        {
+            foreach (var id in itemIds)
+            {
+                if (!enabled && oForm.ActiveItem == id)
+                {
+                    RemoveFocus(oForm);
+                }
+
+                oForm.Items.Item(id).Enabled = enabled;
+            }
+        }
+
+
 
         private void SetValueEdit(SAPbouiCOM.Form oForm, string id, string val)
         {
             oForm.Freeze(true);
             try
             {
-                if (!ItemIsExists(oForm, id)) return;
+                //if (!ItemIsExists(oForm, id)) return;
                 SAPbouiCOM.EditText oEdit = (SAPbouiCOM.EditText)oForm.Items.Item(id).Specific;
                 oEdit.Value = val;
+                oEdit.Active = false;
             }
             finally
             {
@@ -1839,7 +2264,7 @@ namespace SBOAddonCoreTax
             oForm.Freeze(true);
             try
             {
-                if (!ItemIsExists(oForm, id)) return;
+                //if (!ItemIsExists(oForm, id)) return;
                 SAPbouiCOM.CheckBox oCheck = (SAPbouiCOM.CheckBox)oForm.Items.Item(id).Specific;
                 oCheck.Checked = val;
             }
@@ -1851,9 +2276,18 @@ namespace SBOAddonCoreTax
 
         private void SetValueCb(SAPbouiCOM.Form oForm, string id, string val)
         {
-            if (!ItemIsExists(oForm, id)) return;
-            SAPbouiCOM.ComboBox oCombo = (SAPbouiCOM.ComboBox)oForm.Items.Item(id).Specific;
-            oCombo.Select(val, SAPbouiCOM.BoSearchKey.psk_ByValue);
+            oForm.Freeze(true);
+            try
+            {
+                //if (!ItemIsExists(oForm, id)) return;
+                SAPbouiCOM.ComboBox oCombo = (SAPbouiCOM.ComboBox)oForm.Items.Item(id).Specific;
+                oCombo.Select(val, SAPbouiCOM.BoSearchKey.psk_ByValue);
+                oCombo.Active = false;
+            }
+            finally
+            {
+                oForm.Freeze(false);
+            }
         }
 
         private void SetValueDS(SAPbouiCOM.Form oForm, string id, string val)
@@ -1862,30 +2296,58 @@ namespace SBOAddonCoreTax
             oForm.DataSources.UserDataSources.Item(id).Value = val;
         }
 
+        private void ResetHeader(SAPbouiCOM.Form oForm)
+        {
+            coretaxModel = new CoretaxModel();
+
+            SetValueDS(oForm, "CkInvDS", "N");
+            SetValueDS(oForm, "CkDpDS", "N");
+            SetValueDS(oForm, "CkCmDS", "N");
+
+            SetValueDS(oForm, "DtFromDS", null);
+            SetValueDS(oForm, "DtToDS", null);
+            SetValueDS(oForm, "DocDtDS", null);
+            SetValueDS(oForm, "PostDtDS", null);
+
+            ClearEdit(oForm, "TFromDoc");
+            ClearEdit(oForm, "TToDoc");
+            ClearEdit(oForm, "TCustFrom");
+            ClearEdit(oForm, "TCustTo");
+            ClearEdit(oForm, "TSeries");
+            ClearEdit(oForm, "TDocNum");
+            ClearEdit(oForm, "TStatus");
+
+            ClearCombo(oForm, "CbBrFrom");
+            ClearCombo(oForm, "CbOtlFrom");
+            ClearCombo(oForm, "CbOtlTo");
+        }
+
         private void Reset(SAPbouiCOM.Form oForm)
         {
             try
             {
-                ClearCheckBox(oForm,"CkInv", "CkInvDS");
-                ClearCheckBox(oForm,"CkDp", "CkDpDS");
-                ClearCheckBox(oForm,"CkCM", "CkCmDS");
+                ResetHeader(oForm);
 
-                ClearEditDate(oForm, "TFromDt", "DtFromDS");
-                ClearEditDate(oForm, "TToDt", "DtToDS");
-                ClearEditDate(oForm, "TDocDt", "DocDtDS");
-                ClearEditDate(oForm, "TPostDt", "PostDtDS");
+                //ClearCheckBox(oForm,"CkInv", "CkInvDS");
+                //ClearCheckBox(oForm,"CkDp", "CkDpDS");
+                //ClearCheckBox(oForm,"CkCM", "CkCmDS");
 
-                ClearEdit(oForm, "TFromDoc");
-                ClearEdit(oForm, "TToDoc");
-                ClearEdit(oForm, "TCustFrom");
-                ClearEdit(oForm, "TCustTo");
-                ClearEdit(oForm, "TSeries");
-                ClearEdit(oForm, "TDocNum");
-                ClearEdit(oForm, "TStatus");
-                
-                ClearCombo(oForm, "CbBrFrom");
-                ClearCombo(oForm, "CbOtlFrom");
-                ClearCombo(oForm, "CbOtlTo");
+                //ClearEditDate(oForm, "TFromDt", "DtFromDS");
+                //ClearEditDate(oForm, "TToDt", "DtToDS");
+                //ClearEditDate(oForm, "TDocDt", "DocDtDS");
+                //ClearEditDate(oForm, "TPostDt", "PostDtDS");
+
+                //ClearEdit(oForm, "TFromDoc");
+                //ClearEdit(oForm, "TToDoc");
+                //ClearEdit(oForm, "TCustFrom");
+                //ClearEdit(oForm, "TCustTo");
+                //ClearEdit(oForm, "TSeries");
+                //ClearEdit(oForm, "TDocNum");
+                //ClearEdit(oForm, "TStatus");
+
+                //ClearCombo(oForm, "CbBrFrom");
+                //ClearCombo(oForm, "CbOtlFrom");
+                //ClearCombo(oForm, "CbOtlTo");
 
                 ResetDetail(oForm);
             }
@@ -1898,10 +2360,16 @@ namespace SBOAddonCoreTax
 
         private void ResetDetail(SAPbouiCOM.Form oForm)
         {
-            FindListModel.Clear();
-            coretaxModel.Detail.Clear();
-            ClearMatrix(oForm, "MtFind", "DT_FILTER");
-            ClearMatrix(oForm, "MtDetail", "DT_DETAIL", "@T2_CORETAX");
+            if(FindListModel != null && FindListModel.Any())
+            {
+                FindListModel.Clear();
+                ClearMatrix(oForm, "MtFind", "DT_FILTER");
+            }
+            if (coretaxModel.Detail != null && coretaxModel.Detail.Any())
+            {
+                coretaxModel.Detail.Clear();
+                ClearMatrix(oForm, "MtDetail", "DT_DETAIL", "@T2_CORETAX");
+            }
         }
         
         private void SetMtGenerate(SAPbouiCOM.Form oForm)
@@ -2013,10 +2481,14 @@ namespace SBOAddonCoreTax
             
             oMatrix.LoadFromDataSource();
 
+            int white = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.White);
+            
             for (int i = 1; i <= oMatrix.RowCount; i++)
             {
                 ((SAPbouiCOM.EditText)oMatrix.Columns.Item("#").Cells.Item(i).Specific).Value = i.ToString();
+                oMatrix.CommonSetting.SetRowBackColor(i, white);
             }
+
             oMatrix.SelectionMode = SAPbouiCOM.BoMatrixSelect.ms_Auto;
             oMatrix.AutoResizeColumns();
         }
@@ -2215,6 +2687,11 @@ namespace SBOAddonCoreTax
                 // Load data into matrix
                 oMatrix.LoadFromDataSource();
                 oMatrix.SelectionMode = SAPbouiCOM.BoMatrixSelect.ms_Auto;
+                int white = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.White);
+                for (int i = 0; i < oMatrix.RowCount; i++)
+                {
+                    oMatrix.CommonSetting.SetRowBackColor(i + 1, white);
+                }
                 oMatrix.AutoResizeColumns();
 
             }

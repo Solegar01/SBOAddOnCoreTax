@@ -14,18 +14,23 @@ namespace SBOAddonCoreTax.Services
         public static Task<int> AddDataCoretax(CoretaxModel model)
         {
             return Task.Run(() => {
+                SAPbobsCOM.Company oCompany = null;
+                SAPbobsCOM.CompanyService oCompanyService = null;
+                SAPbobsCOM.GeneralService oGeneralService = null;
+                SAPbobsCOM.GeneralDataParams oGeneralParams = null;
+                SAPbobsCOM.GeneralData oGeneralData = null;
                 try
                 {
 
-                    Company oCompany = CompanyService.GetCompany();
-                    SAPbobsCOM.CompanyService oCompanyService = oCompany.GetCompanyService();
+                    oCompany = CompanyService.GetCompany();
+                    oCompanyService = oCompany.GetCompanyService();
                     int seriesId = 0;
                     seriesId = GetSeriesIdCoretax();
                     // 1. Get GeneralService for UDO
-                    GeneralService oGeneralService = oCompanyService.GetGeneralService("T2_CORETAX");
+                    oGeneralService = oCompanyService.GetGeneralService("T2_CORETAX");
 
                     // 2. Create header
-                    GeneralData oGeneralData = (GeneralData)oGeneralService.GetDataInterface(GeneralServiceDataInterfaces.gsGeneralData);
+                    oGeneralData = (GeneralData)oGeneralService.GetDataInterface(GeneralServiceDataInterfaces.gsGeneralData);
 
                     // --- Header fields ---
                     oGeneralData.SetProperty("Series", seriesId);
@@ -101,7 +106,7 @@ namespace SBOAddonCoreTax.Services
                     }
 
                     // 4. Save data
-                    GeneralDataParams oGeneralParams = oGeneralService.Add(oGeneralData);
+                    oGeneralParams = oGeneralService.Add(oGeneralData);
                     int newDocEntry = Convert.ToInt32(oGeneralParams.GetProperty("DocEntry"));
 
                     return Task.FromResult(newDocEntry);
@@ -111,25 +116,37 @@ namespace SBOAddonCoreTax.Services
                     // kalau mau return false aja biar lebih aman
                     throw new Exception($"Error AddDataCoretax: {ex.Message}", ex);
                 }
+                finally
+                {
+                    if (oGeneralData != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oGeneralData);
+                    if (oGeneralParams != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oGeneralParams);
+                    if (oGeneralService != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oGeneralService);
+                    if (oCompanyService != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oCompanyService);
+                }
             });
         }
 
         public static Task<int> UpdateDataCoretax(CoretaxModel model)
         {
             return Task.Run(() => {
+                SAPbobsCOM.Company oCompany = null;
+                SAPbobsCOM.CompanyService oCompanyService = null;
+                SAPbobsCOM.GeneralService oGeneralService = null;
+                SAPbobsCOM.GeneralDataParams oGeneralParams = null;
+                SAPbobsCOM.GeneralData oGeneralData = null;
                 try
                 {
-                    Company oCompany = CompanyService.GetCompany();
-                    SAPbobsCOM.CompanyService oCompanyService = oCompany.GetCompanyService();
+                    oCompany = CompanyService.GetCompany();
+                    oCompanyService = oCompany.GetCompanyService();
 
                     // 1. Get GeneralService for UDO
-                    GeneralService oGeneralService = oCompanyService.GetGeneralService("T2_CORETAX");
+                    oGeneralService = oCompanyService.GetGeneralService("T2_CORETAX");
 
                     // 2. Load existing data by DocEntry
-                    GeneralDataParams oGeneralParams = (GeneralDataParams)oGeneralService.GetDataInterface(GeneralServiceDataInterfaces.gsGeneralDataParams);
+                    oGeneralParams = (GeneralDataParams)oGeneralService.GetDataInterface(GeneralServiceDataInterfaces.gsGeneralDataParams);
                     oGeneralParams.SetProperty("DocEntry", model.DocEntry);   // pastikan model.DocEntry sudah ada
 
-                    GeneralData oGeneralData = oGeneralService.GetByParams(oGeneralParams);
+                    oGeneralData = oGeneralService.GetByParams(oGeneralParams);
 
                     // --- Header fields ---
                     oGeneralData.SetProperty("U_T2_AR_INV", model.IsARInvoice ? "Y" : "N");
@@ -216,8 +233,59 @@ namespace SBOAddonCoreTax.Services
                 {
                     throw new Exception($"Error UpdateDataCoretax: {ex.Message}", ex);
                 }
+                finally
+                {
+                    if (oGeneralData != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oGeneralData);
+                    if (oGeneralParams != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oGeneralParams);
+                    if (oGeneralService != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oGeneralService);
+                    if (oCompanyService != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oCompanyService);
+                }
             });
         }
+
+        public static Task CloseCoretax(int docEntry)
+        {
+            return Task.Run(() =>
+            {
+                SAPbobsCOM.Company oCompany = null;
+                SAPbobsCOM.CompanyService oCompanyService = null;
+                SAPbobsCOM.GeneralService oGeneralService = null;
+                SAPbobsCOM.GeneralDataParams oGeneralParams = null;
+                SAPbobsCOM.GeneralData oGeneralData = null;
+
+                try
+                {
+                    oCompany = CompanyService.GetCompany();
+                    oCompanyService = oCompany.GetCompanyService();
+                    oGeneralService = (SAPbobsCOM.GeneralService)oCompanyService.GetGeneralService("T2_CORETAX");
+
+                    // identify document
+                    oGeneralParams = (SAPbobsCOM.GeneralDataParams)oGeneralService.GetDataInterface(
+                        SAPbobsCOM.GeneralServiceDataInterfaces.gsGeneralDataParams);
+                    oGeneralParams.SetProperty("DocEntry", docEntry);
+
+                    // update posting date before close
+                    oGeneralData = oGeneralService.GetByParams(oGeneralParams);
+                    oGeneralData.SetProperty("U_T2_Posting_Date", DateTime.Today);
+                    oGeneralService.Update(oGeneralData);
+
+                    // close the document
+                    oGeneralService.Close(oGeneralParams);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error CloseCoretax: {ex.Message}", ex);
+                }
+                finally
+                {
+                    if (oGeneralData != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oGeneralData);
+                    if (oGeneralParams != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oGeneralParams);
+                    if (oGeneralService != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oGeneralService);
+                    if (oCompanyService != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oCompanyService);
+                }
+            });
+        }
+
 
         public static Task<CoretaxModel> GetCoretaxByKey(int docEntry)
         {
@@ -637,5 +705,166 @@ namespace SBOAddonCoreTax.Services
                 throw e;
             }
         }
+
+        public static Task UpdateStatusInv(CoretaxModel model)
+        {
+            return Task.Run(() =>
+            {
+                try
+                {
+                    SAPbobsCOM.Company oCompany = CompanyService.GetCompany();
+                    if (model.Detail != null && model.Detail.Any())
+                    {
+                        var gInvList = model.Detail
+                            .GroupBy(p => new
+                            {
+                                p.DocEntry,
+                                p.NoDocument,
+                                p.BPCode,
+                                p.BPName,
+                                p.ObjectType,
+                                p.ObjectName,
+                                p.InvDate,
+                                p.BranchCode,
+                                p.BranchName,
+                                p.OutletCode,
+                                p.OutletName
+                            })
+                            .Select(g => new FilterDataModel
+                            {
+                                DocEntry = g.Key.DocEntry,
+                                DocNo = g.Key.NoDocument,
+                                CardCode = g.Key.BPCode,
+                                CardName = g.Key.BPName,
+                                ObjType = g.Key.ObjectType,
+                                ObjName = g.Key.ObjectName,
+                                PostDate = g.Key.InvDate,
+                                BranchCode = g.Key.BranchCode,
+                                BranchName = g.Key.BranchName,
+                                OutletCode = g.Key.OutletCode,
+                                OutletName = g.Key.OutletName,
+                                Selected = true
+                            })
+                            .ToList();
+
+                        foreach (var item in gInvList)
+                        {
+                            switch (item.ObjType)
+                            {
+                                case "13": // AR Invoice
+                                    UpdateArInvoice(oCompany, int.Parse(item.DocEntry), (model.DocNum ?? 0), "Y");
+                                    break;
+                                case "14": // AR Credit Memo
+                                    UpdateArCreditMemo(oCompany, int.Parse(item.DocEntry), (model.DocNum ?? 0), "Y");
+                                    break;
+                                case "203": // AR Down Payment
+                                    UpdateArDownPayment(oCompany, int.Parse(item.DocEntry), (model.DocNum ?? 0), "Y");
+                                    break;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Update Status Invoice error: {ex.Message}");
+                }
+            });
+        }
+
+        public static void UpdateArInvoice(SAPbobsCOM.Company oCompany, int docEntry, int docNum, string status)
+        {
+            SAPbobsCOM.Documents oInvoice = null;
+
+            try
+            {
+                // Get the invoice
+                oInvoice = (SAPbobsCOM.Documents)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oInvoices);
+
+                if (oInvoice.GetByKey(docEntry))
+                {
+                    // Set the UDF value
+                    oInvoice.UserFields.Fields.Item("U_T2_Exported").Value = status;
+                    oInvoice.UserFields.Fields.Item("U_T2_Coretax_No").Value = docNum;
+
+                    // Update the invoice
+                    int retCode = oInvoice.Update();
+                    if (retCode != 0)
+                    {
+                        oCompany.GetLastError(out int errCode, out string errMsg);
+                        throw new Exception($"Failed to update OINV UDF. Error {errCode}: {errMsg}");
+                    }
+                }
+            }
+            finally
+            {
+                if (oInvoice != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oInvoice);
+            }
+
+        }
+
+        public static void UpdateArDownPayment(SAPbobsCOM.Company oCompany, int docEntry, int docNum, string status)
+        {
+            SAPbobsCOM.Documents oInvoice = null;
+
+            try
+
+            {
+                // Get the invoice
+                oInvoice = (SAPbobsCOM.Documents)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oDownPayments);
+
+                if (oInvoice.GetByKey(docEntry))
+                {
+                    // Set the UDF value
+                    oInvoice.UserFields.Fields.Item("U_T2_Exported").Value = status;
+                    oInvoice.UserFields.Fields.Item("U_T2_Coretax_No").Value = docNum;
+
+                    // Update the invoice
+                    int retCode = oInvoice.Update();
+                    if (retCode != 0)
+                    {
+                        oCompany.GetLastError(out int errCode, out string errMsg);
+                        throw new Exception($"Failed to update OINV UDF. Error {errCode}: {errMsg}");
+                    }
+                }
+            }
+            finally
+            {
+                if (oInvoice != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oInvoice);
+            }
+
+        }
+
+        public static void UpdateArCreditMemo(SAPbobsCOM.Company oCompany, int docEntry, int docNum, string status)
+        {
+            SAPbobsCOM.Documents oInvoice = null;
+
+            try
+
+            {
+                // Get the invoice
+                oInvoice = (SAPbobsCOM.Documents)oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oCreditNotes);
+
+                if (oInvoice.GetByKey(docEntry))
+                {
+                    // Set the UDF value
+                    oInvoice.UserFields.Fields.Item("U_T2_Exported").Value = status;
+                    oInvoice.UserFields.Fields.Item("U_T2_Coretax_No").Value = docNum;
+
+                    // Update the invoice
+                    int retCode = oInvoice.Update();
+                    if (retCode != 0)
+                    {
+                        oCompany.GetLastError(out int errCode, out string errMsg);
+                        throw new Exception($"Failed to update OINV UDF. Error {errCode}: {errMsg}");
+                    }
+                }
+            }
+            finally
+            {
+                if (oInvoice != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(oInvoice);
+            }
+
+        }
+
     }
 }

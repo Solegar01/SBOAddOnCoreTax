@@ -79,7 +79,7 @@ namespace SBOAddonCoreTax
             this.CbOtlTo = ((SAPbouiCOM.ComboBox)(this.GetItem("CbOtlTo").Specific));
             this.Button0 = ((SAPbouiCOM.Button)(this.GetItem("BtXML").Specific));
             this.Button1 = ((SAPbouiCOM.Button)(this.GetItem("BtCSV").Specific));
-            this.StaticText15 = ((SAPbouiCOM.StaticText)(this.GetItem("lDocDt").Specific));
+            this.StaticText15 = ((SAPbouiCOM.StaticText)(this.GetItem("lSysDate").Specific));
             this.EditText0 = ((SAPbouiCOM.EditText)(this.GetItem("TDocDt").Specific));
             this.StaticText16 = ((SAPbouiCOM.StaticText)(this.GetItem("lPostDt").Specific));
             this.EditText1 = ((SAPbouiCOM.EditText)(this.GetItem("TPostDt").Specific));
@@ -87,6 +87,7 @@ namespace SBOAddonCoreTax
             this.Button3 = ((SAPbouiCOM.Button)(this.GetItem("BtSave").Specific));
             this.Matrix0 = ((SAPbouiCOM.Matrix)(this.GetItem("MtDetail").Specific));
             this.Matrix1 = ((SAPbouiCOM.Matrix)(this.GetItem("MtFind").Specific));
+            this.Button2 = ((SAPbouiCOM.Button)(this.GetItem("BtClose").Specific));
             this.OnCustomInitialize();
 
         }
@@ -152,5 +153,6 @@ namespace SBOAddonCoreTax
         private SAPbouiCOM.Button Button3;
         private SAPbouiCOM.Matrix Matrix0;
         private SAPbouiCOM.Matrix Matrix1;
+        private SAPbouiCOM.Button Button2;
     }
 }
